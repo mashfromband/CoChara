@@ -1,0 +1,22 @@
+// .pnpmfile.cjs
+// pnpmの設定ファイル
+
+function readPackage(pkg, context) {
+  // React 18との互換性を確保
+  if (pkg.dependencies) {
+    // framer-motionのピア依存関係を調整
+    if (pkg.dependencies['framer-motion']) {
+      pkg.peerDependencies = pkg.peerDependencies || {}
+      pkg.peerDependencies.react = '^18.0.0'
+      pkg.peerDependencies['react-dom'] = '^18.0.0'
+    }
+  }
+
+  return pkg
+}
+
+module.exports = {
+  hooks: {
+    readPackage
+  }
+}
