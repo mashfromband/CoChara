@@ -39,7 +39,7 @@ const EggCard: React.FC<EggCardProps> = ({
 
   return (
     <motion.div
-      className={`relative bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border transition-all duration-300 hover:shadow-3xl ${getRarityBorder(eggType.rarity)} ${
+      className={`relative bg-gray-50/90 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border transition-all duration-300 hover:shadow-3xl w-80 h-[440px] ${getRarityBorder(eggType.rarity)} ${
         isSelected ? 'ring-4 ring-yellow-400 ring-opacity-60' : ''
       }`}
       initial={{ opacity: 0, y: 50 }}
@@ -53,17 +53,18 @@ const EggCard: React.FC<EggCardProps> = ({
       </div>
 
       {/* 卵SVG */}
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center h-40">
         <EggSVG
           eggType={eggType}
           isSelected={isSelected}
           onClick={() => onSelect(eggType.id)}
+          className="h-full"
         />
       </div>
 
       {/* 卵情報 */}
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-gray-800 mb-3">
+        <h3 className="text-2xl font-bold text-gray-800 my-3">
           {eggType.name}
         </h3>
         <p className="text-gray-600 text-sm leading-relaxed mb-4">

@@ -25,38 +25,38 @@ const EggSVG: React.FC<EggSVGProps> = ({
       case 'heart':
         return (
           <path 
-            d="M35 90 Q60 85 85 90 Q80 100 60 105 Q40 100 35 90" 
+            d="M35 60 Q60 55 85 60 Q80 70 60 75 Q40 70 35 60" 
             fill="rgba(244,114,182,0.3)" 
           />
         )
       case 'stars':
         return (
           <g>
-            <circle cx="40" cy="90" r="2" fill="#fbbf24" opacity="0.8"/>
-            <circle cx="70" cy="100" r="1.5" fill="#fbbf24" opacity="0.6"/>
-            <circle cx="50" cy="110" r="1" fill="#fbbf24" opacity="0.7"/>
-            <circle cx="75" cy="85" r="1" fill="#fbbf24" opacity="0.9"/>
+            <circle cx="40" cy="60" r="2" fill="#fbbf24" opacity="0.8"/>
+            <circle cx="70" cy="70" r="1.5" fill="#fbbf24" opacity="0.6"/>
+            <circle cx="50" cy="80" r="1" fill="#fbbf24" opacity="0.7"/>
+            <circle cx="75" cy="55" r="1" fill="#fbbf24" opacity="0.9"/>
           </g>
         )
       case 'leaves':
         return (
           <g>
-            <path d="M25 100 Q40 95 55 100 Q50 110 40 115 Q30 110 25 100" fill="rgba(34,197,94,0.3)"/>
-            <path d="M65 85 Q80 80 95 85 Q90 95 80 100 Q70 95 65 85" fill="rgba(34,197,94,0.2)"/>
+            <path d="M25 70 Q40 65 55 70 Q50 80 40 85 Q30 80 25 70" fill="rgba(34,197,94,0.3)"/>
+            <path d="M65 55 Q80 50 95 55 Q90 65 80 70 Q70 65 65 55" fill="rgba(34,197,94,0.2)"/>
           </g>
         )
       case 'flames':
         return (
           <g>
-            <path d="M30 95 Q35 85 45 90 Q55 85 65 95 Q60 105 50 110 Q40 105 30 95" fill="rgba(220,38,38,0.4)"/>
-            <path d="M70 80 Q75 70 85 75 Q90 85 85 90 Q75 85 70 80" fill="rgba(251,146,60,0.5)"/>
+            <path d="M30 65 Q35 55 45 60 Q55 55 65 65 Q60 75 50 80 Q40 75 30 65" fill="rgba(220,38,38,0.4)"/>
+            <path d="M70 50 Q75 40 85 45 Q90 55 85 60 Q75 55 70 50" fill="rgba(251,146,60,0.5)"/>
           </g>
         )
       case 'aurora':
         return (
           <g>
-            <path d="M20 85 Q60 75 100 85 Q90 95 60 105 Q30 95 20 85" fill="rgba(255,255,255,0.2)"/>
-            <path d="M25 110 Q60 100 95 110 Q85 120 60 130 Q35 120 25 110" fill="rgba(255,255,255,0.15)"/>
+            <path d="M20 55 Q60 45 100 55 Q90 65 60 75 Q30 65 20 55" fill="rgba(255,255,255,0.2)"/>
+            <path d="M25 80 Q60 70 95 80 Q85 90 60 100 Q35 90 25 80" fill="rgba(255,255,255,0.15)"/>
           </g>
         )
       default:
@@ -145,8 +145,8 @@ const EggSVG: React.FC<EggSVGProps> = ({
       <Sparkle delay={1.5} />
       <motion.svg
         width="120"
-        height="150"
-        viewBox="0 0 120 150"
+        height="180"
+        viewBox="0 0 120 180"
         className={`${isSelected ? 'drop-shadow-2xl' : 'drop-shadow-lg'} transition-all duration-300`}
         animate={{
           filter: isHovered || isSelected 
@@ -163,7 +163,7 @@ const EggSVG: React.FC<EggSVGProps> = ({
         {/* メインの卵の形 */}
         <ellipse
           cx="60"
-          cy="120"
+          cy="90"
           rx="45"
           ry="60"
           fill={`url(#grad-${eggType.id})`}
@@ -177,14 +177,14 @@ const EggSVG: React.FC<EggSVGProps> = ({
         {/* ハイライト */}
         <ellipse
           cx="45"
-          cy="95"
+          cy="65"
           rx="6"
           ry="10"
           fill="rgba(255,255,255,0.8)"
         />
         <circle
           cx="48"
-          cy="98"
+          cy="68"
           r="2"
           fill="rgba(255,255,255,1)"
         />
