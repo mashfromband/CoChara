@@ -8,11 +8,13 @@ import EggCard from './EggCard'
 interface EggSelectionProps {
   onEggSelected?: (eggId: string) => void
   className?: string
+  excludeEggIds?: string[] // 表示しない卵IDのリスト
 }
 
 const EggSelection: React.FC<EggSelectionProps> = ({ 
   onEggSelected,
-  className = ''
+  className = '',
+  excludeEggIds = []
 }) => {
   // 初期値は最初の卵タイプを使用し、クライアントサイドでレアリティに基づいたランダム値に置き換える
   const [randomEgg, setRandomEgg] = useState(eggTypes[0])
@@ -20,9 +22,29 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   const [showMessage, setShowMessage] = useState<string | null>(null)
   
   // クライアントサイドでのみレアリティに基づいたランダムな卵を設定
+  // 取得済みの卵は表示しない
   useEffect(() => {
-    setRandomEgg(getWeightedRandomEggType())
-  }, [])
+    let newEgg = getWeightedRandomEggType()
+    
+    // 取得済みの卵が選ばれた場合は、取得済みでない卵が選ばれるまで再抽選
+    let attempts = 0
+    const maxAttempts = 10 // 無限ループ防止
+    
+    while (excludeEggIds.includes(newEgg.id) && attempts < maxAttempts) {
+      newEgg = getWeightedRandomEggType()
+      attempts++
+    }
+    
+    // 全ての卵が取得済みの場合や、maxAttemptsに達した場合は、取得済みでない卵をフィルタリングして選択
+    if (attempts >= maxAttempts) {
+      const availableEggs = eggTypes.filter(egg => !excludeEggIds.includes(egg.id))
+      if (availableEggs.length > 0) {
+        newEgg = availableEggs[Math.floor(Math.random() * availableEggs.length)]
+      }
+    }
+    
+    setRandomEgg(newEgg)
+  }, [excludeEggIds])
 
   const handleEggSelect = (eggId: string) => {
     setSelectedEgg(eggId)

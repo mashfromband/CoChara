@@ -7,6 +7,10 @@ import { getEggTypeById } from '@/data/eggTypes'
 
 export default function CreateCharacterPage() {
   const [isCreating, setIsCreating] = useState(false)
+  
+  // ユーザーが取得済みの卵IDリスト（モックデータ）
+  // 実際の実装では、APIやデータベースから取得する
+  const userOwnedEggIds = ['pastel', 'cosmic']
 
   const handleEggSelected = async (eggId: string) => {
     setIsCreating(true)
@@ -68,6 +72,7 @@ export default function CreateCharacterPage() {
   return (
     <EggSelection 
       onEggSelected={handleEggSelected}
+      excludeEggIds={userOwnedEggIds}
     />
   )
 }
