@@ -47,10 +47,6 @@ const EggCard: React.FC<EggCardProps> = ({
       transition={{ duration: 0.6, delay: index * 0.1 }}
       whileHover={{ y: -5 }}
     >
-      {/* スパークルエフェクト */}
-      <Sparkle delay={index * 0.5} />
-      <Sparkle delay={index * 0.5 + 1} />
-      
       {/* レアリティバッジ */}
       <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold ${getRarityColor(eggType.rarity)}`}>
         {eggType.rarity.toUpperCase()}

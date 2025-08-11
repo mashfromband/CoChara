@@ -1,12 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import EggSelection from '@/components/character/EggSelection'
+import { redirect } from 'next/navigation'
+import EggSelection from '@/app/components/character/EggSelection'
 import { getEggTypeById } from '@/data/eggTypes'
 
 export default function CreateCharacterPage() {
-  const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
 
   const handleEggSelected = async (eggId: string) => {
@@ -43,8 +42,8 @@ export default function CreateCharacterPage() {
       // 少し待機してからキャラクター画面へ遷移
       await new Promise(resolve => setTimeout(resolve, 2000))
       
-      // router.push(`/character/${character.id}`)
-      router.push('/character/dashboard') // 仮の遷移先
+      // redirect(`/character/${character.id}`)
+      window.location.href = '/character/dashboard' // 仮の遷移先
       
     } catch (error) {
       console.error('キャラクター作成エラー:', error)

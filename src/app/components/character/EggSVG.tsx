@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { EggType } from '@/types/character'
+import Sparkle from '../ui/Sparkle'
 
 interface EggSVGProps {
   eggType: EggType
@@ -137,6 +138,11 @@ const EggSVG: React.FC<EggSVGProps> = ({
       onHoverEnd={() => setIsHovered(false)}
       onClick={onClick}
     >
+      {/* 卵の周りのスパークルエフェクト */}
+      <Sparkle delay={0} />
+      <Sparkle delay={0.5} />
+      <Sparkle delay={1} />
+      <Sparkle delay={1.5} />
       <motion.svg
         width="120"
         height="150"

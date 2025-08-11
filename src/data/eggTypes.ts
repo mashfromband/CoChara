@@ -83,9 +83,9 @@ export const getRandomEggType = (): EggType => {
 // レアリティを考慮したランダム選択（重み付き）
 export const getWeightedRandomEggType = (): EggType => {
   const weights = {
-    common: 60,   // 60%
-    rare: 30,     // 30%  
-    legendary: 10 // 10%
+    common: 75,   // 75%
+    rare: 20,     // 20%  
+    legendary: 5  // 5%
   }
   
   const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0)
