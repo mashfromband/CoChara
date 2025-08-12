@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { PrismaClient } from '@prisma/client'
 import { getEggTypeById } from '@/data/eggTypes'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 // 卵ガチャAPI
 export async function POST(request: Request) {

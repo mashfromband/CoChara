@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { hash } from 'bcrypt';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
+/**
+ * ユーザー登録API
+ * - 入力検証・重複チェック・パスワードハッシュ化を実施
+ * - ユーザー名が "Admin" の場合は、User.type を "Admin" に設定（それ以外は "User"）
+ */
 export async function POST(request: Request) {
   // 常にContent-Typeヘッダーを設定
   const headers = {
@@ -118,13 +121,16 @@ export async function POST(request: Request) {
     // パスワードのハッシュ化（クライアント側でハッシュ化されている場合は不要）
     const hashedPassword = await hash(password, 10);
 
-    // ユーザーの作成（Admin特別処理を削除）
+    // ユーザーの作成
+    // ユーザー名が "Admin" の場合、User.type を "Admin" に設定。その他はデフォルトの "User"。
+    const userType = name === 'Admin' ? 'Admin' : 'User';
     const user = await prisma.user.create({
       data: {
         name,
         email,
         hashedPassword,
         emailVerified: null, // メール認証は別途行う
+        type: userType,
       },
     });
 

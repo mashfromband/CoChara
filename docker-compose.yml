@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17
+    container_name: cochara_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cochara
+      POSTGRES_PASSWORD: cochara
+      POSTGRES_DB: cochara
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cochara -d cochara"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

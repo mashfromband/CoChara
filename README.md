@@ -1,17 +1,41 @@
+# CoChara
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-First, run the development server:
+### 環境設定
+
+1. `.env`ファイルを設定します：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Google Cloud Storage設定
+# サービスアカウントキーのJSONをそのまま環境変数に設定
+GCP_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"あなたのプロジェクトID","private_key_id":"...","private_key":"...","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}'
+
+
+# または、Supabase設定（代替ストレージとして）
+# NEXT_PUBLIC_SUPABASE_URL="あなたのSupabaseプロジェクトURL"
+# NEXT_PUBLIC_SUPABASE_ANON_KEY="あなたのSupabase匿名キー"
+# SUPABASE_SERVICE_ROLE_KEY="あなたのSupabaseサービスロールキー"
+```
+
+2. Google Cloud Storageバケットをセットアップします：
+
+```bash
+pnpm setup-gcs
+```
+
+（または代替としてSupabaseストレージを使用する場合）
+
+```bash
+pnpm setup-storage
+```
+
+### 開発サーバーの起動
+
+```bash
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

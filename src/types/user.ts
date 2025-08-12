@@ -6,6 +6,7 @@ export interface User {
   email?: string
   emailVerified?: Date
   image?: string
+  type?: 'User' | 'Admin'
   createdAt: Date
   updatedAt: Date
 }

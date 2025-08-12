@@ -19,8 +19,8 @@ model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
-  provider          String
-  providerAccountId String
+  provider          String?
+  providerAccountId String?
   refresh_token     String? @db.Text
   access_token      String? @db.Text
   expires_at        Int?
@@ -51,6 +51,7 @@ model User {
   hashedPassword String?
   birthYear     Int?
   birthMonth    Int?
+  type          String    @default("User")
   accounts      Account[]
   sessions      Session[]
   characters    Character[]

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import SocialLoginButton from '../components/ui/SocialLoginButton';
 import PasswordInput from '../components/ui/PasswordInput';
 
 export default function RegisterPage() {
@@ -16,6 +15,7 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -61,10 +61,13 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // 二重送信防止
+    setSubmitting(true);
     setError('');
     
     // ボタンクリック時にのみバリデーションを実行
     if (!validateForm()) {
+      setSubmitting(false);
       return;
     }
     
@@ -162,6 +165,8 @@ export default function RegisterPage() {
       }
       setError(errorMessage);
       setIsLoading(false); // エラー時にローディング状態を解除
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -274,26 +279,7 @@ export default function RegisterPage() {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">または</span>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div>
-                <SocialLoginButton provider="google" label="Googleで登録" callbackUrl="/" />
-              </div>
-
-              <div>
-                <SocialLoginButton provider="github" label="GitHubで登録" callbackUrl="/" />
-              </div>
-            </div>
-          </div>
+          {/* 外部認証ボタンを削除 */}
         </div>
       </div>
     </div>

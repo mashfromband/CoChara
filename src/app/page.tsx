@@ -12,10 +12,26 @@ export default function Home() {
     // セッション情報を確認
     const checkSession = async () => {
       try {
-        // NextAuth.jsのセッションAPIが設定されていない場合は、認証なしとして扱う
-        setIsAuthenticated(false);
+        // NextAuth.jsのセッションAPIを使用してセッション情報を取得
+        // クレデンシャルを含めて送信
+        const response = await fetch('/api/auth/session', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const session = await response.json();
+          setIsAuthenticated(!!session && Object.keys(session).length > 0);
+        } else {
+          console.error('セッション取得エラー:', response.statusText);
+          setIsAuthenticated(false);
+        }
       } catch (error) {
         console.error('セッション確認エラー:', error);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }

@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
+import { SessionProvider } from "next-auth/react";
+import AuthProvider from "./providers/AuthProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,11 +26,13 @@ export default function RootLayout({
       <body
         className={`${inter.variable} antialiased flex flex-col min-h-screen`}
       >
-        <Header />
-        <main className="flex-grow pt-14">
-          {children}
-        </main>
-        <Footer />
+        <AuthProvider>
+          <Header />
+          <main className="flex-grow pt-14">
+            {children}
+          </main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
