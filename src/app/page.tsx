@@ -14,7 +14,9 @@ export default function Home() {
       try {
         // NextAuth.jsのセッションAPIを使用してセッション情報を取得
         // クレデンシャルを含めて送信
-        const response = await fetch('/api/auth/session', {
+        // 環境変数からAPI URLを取得（デフォルトは空文字列）
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const response = await fetch(`${baseUrl}/api/auth/session`, {
           method: 'GET',
           credentials: 'include',
           headers: {

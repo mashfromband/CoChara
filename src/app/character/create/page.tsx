@@ -1,18 +1,31 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { redirect } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import EggSelection from '@/app/components/character/EggSelection'
 import { getEggTypeById } from '@/data/eggTypes'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useSession } from 'next-auth/react'
 
 export default function CreateCharacterPage() {
+  const { data: session } = useSession()
   const [isCreating, setIsCreating] = useState(false)
   const [userOwnedEggIds, setUserOwnedEggIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedEggHistory, setSelectedEggHistory] = useLocalStorage<string[]>('selectedEggHistory', [])
+  const [currentGachaState, setCurrentGachaState] = useLocalStorage<{
+    randomEggs: string[],
+    selectedEgg: string | null,
+    canReroll: boolean,
+    rerollCount: number
+  }>('currentGachaState', {
+    randomEggs: [],
+    selectedEgg: null,
+    canReroll: true,
+    rerollCount: 0
+  })
   const isAfterThirdEgg = selectedEggHistory.length >= 3
   
   // APIからユーザーの卵コレクションを取得

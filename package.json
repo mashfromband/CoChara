@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@8.15.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 8500",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -27,6 +27,7 @@
     "dotenv": "^17.2.1",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.539.0",
+    "minimatch": "^10.0.3",
     "next": "15.0.0",
     "next-auth": "^4.24.5",
     "next-pwa": "^5.6.0",
@@ -37,6 +38,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@types/minimatch": "^6.0.0",
     "@types/node": "^20.10.4",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",

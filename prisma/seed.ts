@@ -4,21 +4,35 @@ const { hash } = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  // テストユーザーの作成
-  const hashedPassword = await hash('password123', 10);
+  // データベースをリセット
+  console.log('データベースをリセットしています...');
+  await prisma.contentItem.deleteMany({});
+  await prisma.character.deleteMany({});
+  await prisma.eggCollection.deleteMany({});
+  await prisma.account.deleteMany({});
+  await prisma.session.deleteMany({});
+  await prisma.user.deleteMany({});
+  await prisma.verificationToken.deleteMany({});
+  console.log('データベースのリセットが完了しました');
+
+  // 指定されたテストユーザーの作成
+  const adminPassword = '|MzbDP~3AgUc';
+  const hashedPassword = await hash(adminPassword, 10);
   
-  const testUser = await prisma.user.upsert({
-    where: { email: 'test@example.com' },
-    update: {},
-    create: {
-      name: 'testuser',
-      email: 'test@example.com',
+  const adminUser = await prisma.user.create({
+    data: {
+      name: 'Admin',
+      email: 'admin@bm1314.com',
       hashedPassword,
-      type: 'User',
+      type: 'Admin',
     },
   });
 
-  console.log({ testUser });
+  console.log('テストユーザーが作成されました:');
+  console.log({ adminUser });
+  console.log(`ユーザー名: Admin`);
+  console.log(`パスワード: ${adminPassword}`);
+  console.log(`メール: admin@bm1314.com`);
 }
 
 main()

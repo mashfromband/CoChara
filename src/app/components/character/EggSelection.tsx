@@ -5,6 +5,8 @@ import { motion } from 'framer-motion'
 import { getWeightedRandomEggType, eggTypes } from '@/data/eggTypes'
 import { EggType } from '@/types/character'
 import EggCard from './EggCard'
+import { useSession } from 'next-auth/react'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 
 interface EggSelectionProps {
   onEggSelected?: (eggId: string) => void
@@ -19,12 +21,30 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   excludeEggIds = [],
   isAfterThirdEgg = false
 }) => {
+  // セッション情報を取得（ユーザータイプの確認用）
+  const { data: session } = useSession()
+  // ユーザー名が「Admin」の場合、管理者権限を付与
+  const isAdmin = session?.user?.name === 'Admin'
+  
+  // LocalStorageから現在のガチャ状態を取得
+  const [currentGachaState, setCurrentGachaState] = useLocalStorage<{
+    randomEggs: string[],
+    selectedEgg: string | null,
+    canReroll: boolean,
+    rerollCount: number
+  }>('currentGachaState', {
+    randomEggs: [],
+    selectedEgg: null,
+    canReroll: true,
+    rerollCount: 0
+  })
+  
   // 3つのランダムな卵を保持する状態
-  const [randomEggs, setRandomEggs] = useState(Array(3).fill(eggTypes[0]))
-  const [selectedEgg, setSelectedEgg] = useState<string | null>(null)
+  const [randomEggs, setRandomEggs] = useState<EggType[]>([])
+  const [selectedEgg, setSelectedEgg] = useState<string | null>(currentGachaState.selectedEgg)
   const [showMessage, setShowMessage] = useState<string | null>(null)
-  const [rerollCount, setRerollCount] = useState(0)
-  const [canReroll, setCanReroll] = useState(true)
+  const [rerollCount, setRerollCount] = useState(currentGachaState.rerollCount)
+  const [canReroll, setCanReroll] = useState(currentGachaState.canReroll)
   const [showGachaOption, setShowGachaOption] = useState(false)
   const [showDefaultEggs, setShowDefaultEggs] = useState(false)
   
@@ -32,16 +52,36 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   // 取得済みの卵は表示しない
   useEffect(() => {
     if (!isAfterThirdEgg) {
-      // 3つ目までは通常のランダム卵を表示
-      generateRandomEggs()
+      // LocalStorageに保存された卵IDがある場合はそれを使用
+      if (currentGachaState.randomEggs.length > 0) {
+        const savedEggs = currentGachaState.randomEggs
+          .map(eggId => eggTypes.find(egg => egg.id === eggId))
+          .filter((egg): egg is EggType => egg !== undefined);
+        
+        if (savedEggs.length === 3) {
+          setRandomEggs(savedEggs);
+          return;
+        }
+      }
+      
+      // 保存された状態がない場合は新しく生成
+      const eggs = generateRandomEggs()
+      setRandomEggs(eggs)
+      
+      // LocalStorageに保存
+      setCurrentGachaState({
+        ...currentGachaState,
+        randomEggs: eggs.map(egg => egg.id)
+      })
     } else {
       // 4つ目以降は選択画面を表示
       setShowGachaOption(true)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [excludeEggIds, isAfterThirdEgg])
   
   // 3つのランダムな卵を生成する関数
-  const generateRandomEggs = () => {
+  const generateRandomEggs = (): EggType[] => {
     const newEggs: EggType[] = []
     
     for (let i = 0; i < 3; i++) {
@@ -69,11 +109,17 @@ const EggSelection: React.FC<EggSelectionProps> = ({
       newEggs.push(newEgg)
     }
     
-    setRandomEggs(newEggs)
+    return newEggs
   }
 
   const handleEggSelect = (eggId: string) => {
     setSelectedEgg(eggId)
+    
+    // LocalStorageに選択状態を保存
+    setCurrentGachaState({
+      ...currentGachaState,
+      selectedEgg: eggId
+    })
     
     const messages = [
       '何かが動いている...',
@@ -91,11 +137,28 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   
   // 卵を再抽選する関数
   const handleReroll = () => {
-    if (canReroll) {
-      generateRandomEggs()
-      setRerollCount(rerollCount + 1)
-      setCanReroll(false)
+    if (canReroll || isAdmin) {
+      const newEggs = generateRandomEggs()
+      setRandomEggs(newEggs)
+      
+      const newRerollCount = rerollCount + 1
+      setRerollCount(newRerollCount)
+      
+      // Adminユーザーの場合は何度でも再抽選可能
+      const newCanReroll = isAdmin ? true : false
+      if (!isAdmin) {
+        setCanReroll(false)
+      }
+      
       setSelectedEgg(null)
+      
+      // LocalStorageに状態を保存
+      setCurrentGachaState({
+        randomEggs: newEggs.map(egg => egg.id),
+        selectedEgg: null,
+        canReroll: newCanReroll,
+        rerollCount: newRerollCount
+      })
       
       setShowMessage('新しい卵が登場しました！')
       setTimeout(() => setShowMessage(null), 3000)
@@ -111,7 +174,14 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   // ガチャを引く選択をした場合
   const handleChooseGacha = () => {
     setShowGachaOption(false)
-    generateRandomEggs()
+    const eggs = generateRandomEggs()
+    setRandomEggs(eggs)
+    
+    // LocalStorageに状態を保存
+    setCurrentGachaState({
+      ...currentGachaState,
+      randomEggs: eggs.map(egg => egg.id)
+    })
   }
 
   // デフォルト卵から選ぶ選択をした場合
@@ -120,7 +190,14 @@ const EggSelection: React.FC<EggSelectionProps> = ({
     setShowDefaultEggs(true)
     // デフォルト卵のみを表示（取得済みの卵は除外）
     const defaultEggs = eggTypes.filter(egg => !excludeEggIds.includes(egg.id))
-    setRandomEggs(defaultEggs.slice(0, 3)) // 最初の3つを表示
+    const eggs = defaultEggs.slice(0, 3) // 最初の3つを表示
+    setRandomEggs(eggs)
+    
+    // LocalStorageに状態を保存
+    setCurrentGachaState({
+      ...currentGachaState,
+      randomEggs: eggs.map(egg => egg.id)
+    })
   }
 
   return (
@@ -182,40 +259,85 @@ const EggSelection: React.FC<EggSelectionProps> = ({
         </motion.div>
       )}
       
-      {/* 卵表示 - 三角形配置の3つ */}
+      {/* 卵表示 - レスポンシブ配置の3つ */}
       {(!showGachaOption || !isAfterThirdEgg) && (
         <div className="max-w-6xl mx-auto">
+          {/* レスポンシブ配置 */}
+          {/* lg (1024px以上): 横に3つ並べる */}
+          {/* md (768px以上): 上に1つ、下に2つの三角形配置 */}
+          {/* sm (640px未満): 縦に1列に並べる */}
           <div className="flex flex-col items-center">
-            {/* 最初の卵（頂点） */}
+            {/* 大画面では横に3つ並べる */}
             <motion.div
-              className="mb-6"
+              className="hidden lg:flex lg:flex-row lg:justify-center lg:gap-6 lg:w-full"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 0.3 }}
+              transition={{ duration: 1 }}
             >
-              <EggCard
-                key={`${randomEggs[0].id}-0`}
-                eggType={randomEggs[0]}
-                isSelected={selectedEgg === randomEggs[0].id}
-                onSelect={handleEggSelect}
-                index={0}
-              />
-            </motion.div>
-            
-            {/* 下の2つの卵（底辺） */}
-            <motion.div
-              className="flex justify-center gap-6"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 0.5 }}
-            >
-              {randomEggs.slice(1, 3).map((eggType, index) => (
+              {randomEggs.length > 0 && randomEggs.map((eggType, index) => (
                 <EggCard
-                  key={`${eggType.id}-${index + 1}`}
+                  key={`${eggType.id}-row-${index}`}
                   eggType={eggType}
                   isSelected={selectedEgg === eggType.id}
                   onSelect={handleEggSelect}
-                  index={index + 1}
+                  index={index}
+                />
+              ))}
+            </motion.div>
+            
+            {/* 中画面では三角形配置（現在の配置） */}
+            <div className="hidden md:block lg:hidden">
+              {/* 最初の卵（頂点） */}
+              <motion.div
+                className="mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.3 }}
+              >
+                {randomEggs.length > 0 && (
+                  <EggCard
+                    key={`${randomEggs[0].id}-triangle-0`}
+                    eggType={randomEggs[0]}
+                    isSelected={selectedEgg === randomEggs[0].id}
+                    onSelect={handleEggSelect}
+                    index={0}
+                  />
+                )}
+              </motion.div>
+              
+              {/* 下の2つの卵（底辺） */}
+              <motion.div
+                className="flex justify-center gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.5 }}
+              >
+                {randomEggs.length > 2 && randomEggs.slice(1, 3).map((eggType, index) => (
+                  <EggCard
+                    key={`${eggType.id}-triangle-${index + 1}`}
+                    eggType={eggType}
+                    isSelected={selectedEgg === eggType.id}
+                    onSelect={handleEggSelect}
+                    index={index + 1}
+                  />
+                ))}
+              </motion.div>
+            </div>
+            
+            {/* 小画面では縦に1列に並べる */}
+            <motion.div
+              className="flex flex-col items-center gap-6 sm:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1 }}
+            >
+              {randomEggs.length > 0 && randomEggs.map((eggType, index) => (
+                <EggCard
+                  key={`${eggType.id}-column-${index}`}
+                  eggType={eggType}
+                  isSelected={selectedEgg === eggType.id}
+                  onSelect={handleEggSelect}
+                  index={index}
                 />
               ))}
             </motion.div>
@@ -233,13 +355,13 @@ const EggSelection: React.FC<EggSelectionProps> = ({
         >
           {/* 再抽選ボタン */}
           <motion.button
-            className={`px-6 py-3 rounded-full text-white font-medium shadow-md transition-all ${canReroll ? 'bg-gradient-to-r from-indigo-500 to-purple-500 hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'}`}
-            whileHover={canReroll ? { scale: 1.05 } : {}}
-            whileTap={canReroll ? { scale: 0.95 } : {}}
+            className={`px-6 py-3 rounded-full text-white font-medium shadow-md transition-all ${canReroll || isAdmin ? 'bg-gradient-to-r from-indigo-500 to-purple-500 hover:shadow-lg' : 'bg-gray-400 cursor-not-allowed'}`}
+            whileHover={(canReroll || isAdmin) ? { scale: 1.05 } : {}}
+            whileTap={(canReroll || isAdmin) ? { scale: 0.95 } : {}}
             onClick={handleReroll}
-            disabled={!canReroll}
+            disabled={!(canReroll || isAdmin)}
           >
-            {canReroll ? '卵を再抽選する' : '再抽選は1回のみ可能です'}
+            {isAdmin ? '卵を再抽選する (Admin)' : canReroll ? '卵を再抽選する' : '再抽選は1回のみ可能です'}
           </motion.button>
 
           {/* 決定ボタン - 卵が選択されている場合のみ表示 */}

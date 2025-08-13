@@ -164,36 +164,41 @@ function ProfileContent() {
     }
   };
 
+  // リダイレクト処理を追跡するためのフラグ
+  const [redirected, setRedirected] = useState(false);
+
+  // 認証状態に応じてリダイレクトまたはデータ取得
   useEffect(() => {
-    // 認証状態に応じてリダイレクトまたはデータ取得
-    if (status === 'unauthenticated') {
-      // 開発中は認証エラーを無視してダミーデータを表示
-      setUserData({
-        id: 'dummy-id',
-        name: 'テストユーザー',
-        email: 'test@example.com',
-        image: 'https://storage.googleapis.com/cochara_images/test-profile.jpg',
-        createdAt: new Date().toISOString()
-      });
-      setIsLoading(false);
-      // 本番環境ではログインページにリダイレクト
-      // router.push('/login');
+    // ローカルストレージを使用してリダイレクト状態を管理
+    const hasRedirected = localStorage.getItem('profile_redirected') === 'true';
+    
+    if (status === 'unauthenticated' && !hasRedirected) {
+      // 未ログインの場合はログインページにリダイレクト（一度だけ）
+      console.log('Redirecting to login page...');
+      localStorage.setItem('profile_redirected', 'true');
+      router.push('/login');
+      // リダイレクト中もローディング状態を維持
+      setIsLoading(true);
     } else if (status === 'authenticated') {
+      // 認証済みの場合はユーザーデータを更新
+      console.log('User is authenticated, refreshing data...');
+      localStorage.removeItem('profile_redirected'); // リダイレクトフラグをクリア
       refreshUserData();
+      setIsLoading(false);
+    } else if (status === 'loading') {
+      // ロード中はisLoadingをtrueのままにする
+      console.log('Authentication status is loading...');
+      setIsLoading(true);
     }
-  }, [status, router]);
+  }, [status, router]); // 依存配列を最小限に
   
-  // ページが表示されるたびにユーザー情報を更新
-  useEffect(() => {
-    if (status === 'authenticated' && session) {
-      refreshUserData();
-    }
-  }, []);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-20 flex justify-center items-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      <div className="min-h-screen pt-20 flex flex-col justify-center items-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300">読み込み中...</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">プロフィール情報を取得しています</p>
       </div>
     );
   }
