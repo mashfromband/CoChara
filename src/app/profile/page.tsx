@@ -4,6 +4,9 @@ import { useSession, SessionProvider } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { User, Edit2, Save, X } from 'lucide-react';
+import { Character } from '@/types/character';
+import { getEggTypeById } from '@/data/eggTypes';
+import EggImage from '../components/character/EggImage';
 // toast関数の代わりにアラート表示用の関数を定義
 const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   alert(`${type === 'success' ? '成功' : 'エラー'}: ${message}`);
@@ -31,6 +34,7 @@ function ProfileContent() {
     email?: string;
     image?: string;
     createdAt?: string;
+    characters?: Character[];
   }
 
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -83,12 +87,54 @@ function ProfileContent() {
     } catch (err) {
       console.error('Error refreshing user data:', err);
       // エラー時もダミーデータを表示
+      const cosmicEggType = getEggTypeById('cosmic');
+      const classicEggType = getEggTypeById('classic');
+      
+      if (!cosmicEggType || !classicEggType) {
+        console.error('卵タイプが見つかりません');
+        return;
+      }
+      
       setUserData({
         id: 'dummy-id',
         name: 'テストユーザー',
         email: 'test@example.com',
         image: 'https://storage.googleapis.com/cochara_images/test-profile.jpg',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        characters: [
+          {
+            id: 'char-1',
+            name: 'ミステリーエッグ',
+            eggType: cosmicEggType,
+            stats: {
+              level: 1,
+              experience: 0,
+              contentCount: 0,
+              evolutionStage: 0
+            },
+            evolutionHistory: [],
+            ownerId: 'dummy-id',
+            sharedWith: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          {
+            id: 'char-2',
+            name: 'クラシックエッグ',
+            eggType: classicEggType,
+            stats: {
+              level: 2,
+              experience: 75,
+              contentCount: 3,
+              evolutionStage: 0
+            },
+            evolutionHistory: [],
+            ownerId: 'dummy-id',
+            sharedWith: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        ]
       });
     } finally {
       setIsLoading(false);
@@ -296,14 +342,44 @@ function ProfileContent() {
             
             <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">キャラクター</h3>
-              <p className="text-gray-600 dark:text-gray-400">あなたのキャラクターがここに表示されます。</p>
+              
+              {userData?.characters && userData.characters.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  {userData.characters.map((character) => (
+                    <div key={character.id} className="bg-white dark:bg-gray-700 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-shadow">
+                      <a href={`/character/${character.id}`} className="block">
+                        <div className="p-4 flex items-center space-x-4">
+                          <div className="w-16 h-16 flex-shrink-0">
+                            <EggImage 
+                              eggType={character.eggType} 
+                              animated={false} 
+                              isSelected={false} 
+                            />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-white">{character.name}</h4>
+                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                                Lv.{character.stats.level}
+                              </span>
+                              <span className="ml-2">{character.eggType.name}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-600 dark:text-gray-400">まだキャラクターを持っていません。</p>
+              )}
               
               <div className="mt-4">
                 <a 
                   href="/character/create" 
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
-                  初めての卵を手に入れる
+                  {userData?.characters && userData.characters.length > 0 ? '新しい卵を手に入れる' : '初めての卵を手に入れる'}
                 </a>
               </div>
             </div>

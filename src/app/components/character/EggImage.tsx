@@ -30,7 +30,20 @@ const EggImage: React.FC<EggImageProps> = ({
   
   // 卵タイプに基づいて画像パスを生成
   const getEggImagePath = (eggId: string) => {
-    return `/images/eggs/${eggId}.png`
+    // SVGを優先的に使用（高品質表示が必要な場合）
+    if (size >= 300) {
+      return `/images/eggs/${eggId}_egg.svg`;
+    }
+    
+    // サイズに応じて適切な画質の画像を選択
+    let quality = 'medium';
+    if (size <= 80) {
+      quality = 'low';
+    } else if (size >= 200) {
+      quality = 'high';
+    }
+    
+    return `/images/eggs/${eggId}_egg_${quality}.png`;
   }
 
   return (
@@ -67,27 +80,37 @@ const EggImage: React.FC<EggImageProps> = ({
         {/* 注意: 実際の画像ファイルはプロジェクトに含まれていないため、
             画像が用意されるまではプレースホルダーとして表示します */}
         <div 
-          className={`w-full h-full flex items-center justify-center rounded-full overflow-hidden bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`}
-          style={{ 
-            border: `2px solid ${getTailwindColorValue(eggType.strokeColor)}`,
-          }}
+          className={`w-full h-full flex items-center justify-center rounded-full overflow-hidden`}
         >
           <img 
             src={getEggImagePath(eggType.id)} 
             alt={`${eggType.name}の卵`}
             className="w-full h-full object-contain"
             onError={(e) => {
+              const imgElement = e.currentTarget;
+              const currentSrc = imgElement.src;
+              
+              // SVGファイルが見つからない場合はPNG画像を試す
+              if (currentSrc.endsWith('.svg')) {
+                // SVGからPNGに切り替え
+                const pngSrc = currentSrc.replace('.svg', '_high.png');
+                imgElement.src = pngSrc;
+                return;
+              }
+              
               // 画像が見つからない場合はプレースホルダーとして表示
-              e.currentTarget.style.display = 'none'
+              imgElement.style.display = 'none';
+              // 親要素にグラデーション背景を適用
+              imgElement.parentElement!.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`;
             }}
           />
         </div>
       </motion.div>
       
-      {/* 選択インジケーター */}
+      {/* 選択インジケーター - 枠なしバージョン */}
       {isSelected && (
         <motion.div
-          className="absolute -inset-2 border-4 border-yellow-400 rounded-full"
+          className="absolute -inset-2 rounded-full bg-yellow-400/20"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}

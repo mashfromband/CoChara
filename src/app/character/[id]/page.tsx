@@ -6,19 +6,125 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { getEggTypeById } from '@/data/eggTypes'
 import EggImage from '@/app/components/character/EggImage'
+import { motion } from 'framer-motion'
+import { Character } from '@/types/character'
 
 // キャラクター詳細ページ
 export default function CharacterDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { data: session, status } = useSession()
-  const [character, setCharacter] = useState<any>(null)
+  const [character, setCharacter] = useState<Character | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // コンテンツ追加モーダル関連のstate
+  const [showAddContentModal, setShowAddContentModal] = useState(false)
+  const [contentUrl, setContentUrl] = useState('')
+  const [contentTitle, setContentTitle] = useState('')
+  const [contentType, setContentType] = useState<'music' | 'video' | 'article' | 'image' | 'other'>('other')
+  const [isAddingContent, setIsAddingContent] = useState(false)
+  const [addContentError, setAddContentError] = useState<string | null>(null)
+  
+  // レベルアップモーダル関連のstate
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false)
+  const [levelUpInfo, setLevelUpInfo] = useState<{oldLevel: number, newLevel: number, expGained: number} | null>(null)
   
   // キャラクターIDを取得
   const characterId = params.id as string
   
+  // 経験値からレベルを計算する関数
+  const calculateLevel = (experience: number) => {
+    // 50経験値ごとにレベルアップ
+    return Math.floor(experience / 50) + 1;
+  }
+
+  // コンテンツ追加時の処理
+  const handleAddContent = async () => {
+    if (!contentUrl || !contentTitle) {
+      setAddContentError('URLとタイトルを入力してください');
+      return;
+    }
+
+    if (!character) {
+      setAddContentError('キャラクター情報が読み込まれていません');
+      return;
+    }
+
+    try {
+      setIsAddingContent(true);
+      setAddContentError(null);
+
+      // ランダムな経験値（1〜3）を生成
+      const expGained = Math.floor(Math.random() * 3) + 1;
+      
+      // 現在のキャラクター情報をコピー
+      const updatedCharacter: Character = {
+        ...character,
+        stats: { ...character.stats }
+      };
+      
+      // 経験値とコンテンツ数を更新
+      const oldExperience = updatedCharacter.stats.experience;
+      const newExperience = oldExperience + expGained;
+      const oldLevel = updatedCharacter.stats.level;
+      const newLevel = calculateLevel(newExperience);
+      
+      updatedCharacter.stats.experience = newExperience;
+      updatedCharacter.stats.contentCount += 1;
+      updatedCharacter.stats.level = newLevel;
+      
+      // 本番環境では以下のようにAPIリクエストを実装
+      /*
+      const response = await fetch(`/api/characters/${characterId}/content`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: contentUrl,
+          title: contentTitle,
+          type: contentType,
+          expGained: expGained
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'コンテンツの追加に失敗しました');
+      }
+      
+      const data = await response.json();
+      setCharacter(data.character);
+      */
+      
+      // 開発中はフロントエンドでデータを更新
+      setCharacter(updatedCharacter);
+      
+      // モーダルを閉じて入力をリセット
+      setShowAddContentModal(false);
+      setContentUrl('');
+      setContentTitle('');
+      setContentType('other');
+      
+      // レベルアップした場合はモーダルを表示
+      if (newLevel > oldLevel) {
+        setLevelUpInfo({
+          oldLevel,
+          newLevel,
+          expGained
+        });
+        setShowLevelUpModal(true);
+      }
+      
+    } catch (err) {
+      console.error('コンテンツ追加エラー:', err);
+      setAddContentError('コンテンツの追加に失敗しました');
+    } finally {
+      setIsAddingContent(false);
+    }
+  };
+
   // キャラクター情報を取得
   useEffect(() => {
     const fetchCharacter = async () => {
@@ -40,18 +146,26 @@ export default function CharacterDetailPage() {
         */
         
         // 開発中はダミーデータを使用
-        const dummyCharacter = {
+        const cosmicEggType = getEggTypeById('cosmic');
+        if (!cosmicEggType) {
+          throw new Error('卵タイプが見つかりません');
+        }
+        
+        const dummyCharacter: Character = {
           id: characterId,
           name: 'ミステリーエッグ',
-          eggTypeId: 'cosmic', // デフォルトの卵タイプ
+          eggType: cosmicEggType, // EggType型のオブジェクト
           stats: {
             level: 1,
             experience: 0,
             contentCount: 0,
             evolutionStage: 0
           },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          evolutionHistory: [],
+          ownerId: 'dummy-owner',
+          sharedWith: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
         
         setCharacter(dummyCharacter)
@@ -64,9 +178,7 @@ export default function CharacterDetailPage() {
       }
     }
     
-    if (characterId) {
-      fetchCharacter()
-    }
+    fetchCharacter()
   }, [characterId])
   
   // 認証状態に応じてリダイレクト
@@ -126,7 +238,8 @@ export default function CharacterDetailPage() {
   }
   
   // 卵タイプ情報を取得
-  const eggType = getEggTypeById(character.eggTypeId) || {
+  // character.eggTypeはすでにEggTypeオブジェクトなので、そのまま使用
+  const eggType = character ? character.eggType : {
     id: 'default',
     name: '不明な卵',
     description: '謎に包まれた卵',
@@ -134,8 +247,7 @@ export default function CharacterDetailPage() {
     gradient: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     strokeColor: 'stroke-gray-400',
     pattern: 'stars',
-    characteristics: ['謎', '未知', '可能性'],
-    color: '#888888' // 互換性のために残す
+    characteristics: ['謎', '未知', '可能性']
   }
   
   return (
@@ -155,8 +267,13 @@ export default function CharacterDetailPage() {
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
             {/* 卵の表示 */}
             <div className="w-48 h-48 relative flex-shrink-0">
-              <EggImage eggType={eggType} size={192} animated={true} />
-            </div>
+                <EggImage 
+                  eggType={eggType} 
+                  size={192} 
+                  animated={true} 
+                  isSelected={false} 
+                />
+              </div>
             
             {/* キャラクター情報 */}
             <div className="flex-grow text-white">
@@ -171,6 +288,9 @@ export default function CharacterDetailPage() {
                 <div className="bg-white/10 p-3 rounded-lg">
                   <h3 className="text-sm font-medium text-white/60 mb-1">経験値</h3>
                   <p className="text-2xl font-bold">{character.stats.experience}</p>
+                  <div className="text-xs text-white/60">
+                    次のレベルまで: {50 - (character.stats.experience % 50)}
+                  </div>
                 </div>
                 <div className="bg-white/10 p-3 rounded-lg">
                   <h3 className="text-sm font-medium text-white/60 mb-1">コンテンツ数</h3>
@@ -183,7 +303,10 @@ export default function CharacterDetailPage() {
               </div>
               
               <div className="flex flex-wrap gap-3">
-                <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors">
+                <button 
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors"
+                  onClick={() => setShowAddContentModal(true)}
+                >
                   コンテンツを追加
                 </button>
                 <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors">
@@ -204,6 +327,130 @@ export default function CharacterDetailPage() {
             </div>
           </div>
         </div>
+        
+        {/* コンテンツ追加モーダル */}
+        {showAddContentModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-indigo-900 rounded-lg p-6 w-full max-w-md">
+              <h2 className="text-2xl font-bold mb-4 text-white">コンテンツを追加</h2>
+              
+              {addContentError && (
+                <div className="bg-red-500/20 border border-red-500 rounded-lg p-3 mb-4">
+                  <p className="text-red-200 text-sm">{addContentError}</p>
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <label className="block text-white/80 mb-2" htmlFor="content-url">
+                  URL
+                </label>
+                <input
+                  id="content-url"
+                  type="text"
+                  value={contentUrl}
+                  onChange={(e) => setContentUrl(e.target.value)}
+                  className="w-full bg-indigo-800/50 border border-indigo-700 rounded-md px-3 py-2 text-white"
+                  placeholder="https://example.com"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-white/80 mb-2" htmlFor="content-title">
+                  タイトル
+                </label>
+                <input
+                  id="content-title"
+                  type="text"
+                  value={contentTitle}
+                  onChange={(e) => setContentTitle(e.target.value)}
+                  className="w-full bg-indigo-800/50 border border-indigo-700 rounded-md px-3 py-2 text-white"
+                  placeholder="コンテンツのタイトル"
+                />
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-white/80 mb-2" htmlFor="content-type">
+                  タイプ
+                </label>
+                <select
+                  id="content-type"
+                  value={contentType}
+                  onChange={(e) => setContentType(e.target.value as any)}
+                  className="w-full bg-indigo-800/50 border border-indigo-700 rounded-md px-3 py-2 text-white"
+                >
+                  <option value="music">音楽</option>
+                  <option value="video">動画</option>
+                  <option value="article">記事</option>
+                  <option value="image">画像</option>
+                  <option value="other">その他</option>
+                </select>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowAddContentModal(false)}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-md transition-colors"
+                  disabled={isAddingContent}
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleAddContent}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                  disabled={isAddingContent}
+                >
+                  {isAddingContent ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                      追加中...
+                    </>
+                  ) : (
+                    '追加する'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* レベルアップモーダル */}
+        {showLevelUpModal && levelUpInfo && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-gradient-to-b from-yellow-600 to-yellow-800 rounded-lg p-6 w-full max-w-md text-center"
+            >
+              <h2 className="text-3xl font-bold mb-2 text-yellow-100">レベルアップ！</h2>
+              <p className="text-yellow-200 mb-6">おめでとうございます！</p>
+              
+              <div className="flex justify-center items-center gap-8 mb-6">
+                <div className="text-center">
+                  <div className="text-yellow-200 text-sm">Before</div>
+                  <div className="text-4xl font-bold text-white">{levelUpInfo.oldLevel}</div>
+                </div>
+                
+                <div className="text-4xl">→</div>
+                
+                <div className="text-center">
+                  <div className="text-yellow-200 text-sm">After</div>
+                  <div className="text-4xl font-bold text-white">{levelUpInfo.newLevel}</div>
+                </div>
+              </div>
+              
+              <p className="text-yellow-200 mb-8">
+                コンテンツを追加して <span className="font-bold text-white">+{levelUpInfo.expGained} EXP</span> を獲得しました！
+              </p>
+              
+              <button
+                onClick={() => setShowLevelUpModal(false)}
+                className="bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-bold px-6 py-3 rounded-md transition-colors"
+              >
+                OK
+              </button>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   )
