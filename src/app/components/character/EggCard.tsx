@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { EggType } from '@/types/character'
-import EggSVG from './EggSVG'
+import EggImage from './EggImage'
 import Sparkle from '../ui/Sparkle'
 
 interface EggCardProps {
@@ -52,9 +52,9 @@ const EggCard: React.FC<EggCardProps> = ({
         {eggType.rarity.toUpperCase()}
       </div>
 
-      {/* 卵SVG */}
+      {/* 卵画像 */}
       <div className="flex justify-center h-40">
-        <EggSVG
+        <EggImage
           eggType={eggType}
           isSelected={isSelected}
           onClick={() => onSelect(eggType.id)}

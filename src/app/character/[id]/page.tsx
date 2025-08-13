@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { getEggTypeById } from '@/data/eggTypes'
-import EggSVG from '@/app/components/character/EggSVG'
+import EggImage from '@/app/components/character/EggImage'
 
 // キャラクター詳細ページ
 export default function CharacterDetailPage() {
@@ -155,7 +155,7 @@ export default function CharacterDetailPage() {
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
             {/* 卵の表示 */}
             <div className="w-48 h-48 relative flex-shrink-0">
-              <EggSVG eggType={eggType} size={192} animated={true} />
+              <EggImage eggType={eggType} size={192} animated={true} />
             </div>
             
             {/* キャラクター情報 */}
