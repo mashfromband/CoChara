@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { uploadFileToGCS } from '@/lib/gcs';
+import { uploadFileToS3 } from '@/lib/s3';
 
-// GCSクライアントの初期化チェック
-if (!process.env.GCP_SERVICE_ACCOUNT_KEY) {
-  console.error('GCP_SERVICE_ACCOUNT_KEY環境変数が設定されていません');
+// MinIOクライアントの初期化チェック
+if (!process.env.MINIO_ENDPOINT || !process.env.MINIO_ACCESS_KEY || !process.env.MINIO_SECRET_KEY) {
+  console.error('MinIO環境変数(MINIO_ENDPOINT/MINIO_ACCESS_KEY/MINIO_SECRET_KEY)が設定されていません');
   // 環境変数が設定されていない場合は、サーバー起動時に警告を表示するだけ
 }
 
@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
-    // Google Cloud Storageにアップロード
+    // MinIO(S3互換)にアップロード
     try {
       console.log(`アップロードAPI: バケット=${bucketName}, ファイル名=${fileName}, サイズ=${fileBuffer.length}バイト`);
       
-      const fileUrl = await uploadFileToGCS(
+      const fileUrl = await uploadFileToS3(
         bucketName,
         fileName,
         fileBuffer,
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         path: `${bucketName}/${fileName}`
       });
     } catch (uploadError) {
-      console.error('GCSアップロードエラー:', uploadError);
+      console.error('MinIOアップロードエラー:', uploadError);
       
       // エラーメッセージをより詳細に
       let errorMessage = 'ファイルのアップロードに失敗しました';

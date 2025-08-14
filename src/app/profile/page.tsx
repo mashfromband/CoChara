@@ -70,7 +70,7 @@ function ProfileContent() {
           id: session.user.id as string || 'dummy-id',
           name: session.user.name || 'テストユーザー',
           email: session.user.email || 'test@example.com',
-          image: 'https://storage.googleapis.com/cochara_images/test-profile.jpg',
+          image: '/next.svg',
           createdAt: new Date().toISOString()
         });
       } else {
@@ -99,7 +99,7 @@ function ProfileContent() {
         id: 'dummy-id',
         name: 'テストユーザー',
         email: 'test@example.com',
-        image: 'https://storage.googleapis.com/cochara_images/test-profile.jpg',
+        image: '/next.svg',
         createdAt: new Date().toISOString(),
         characters: [
           {

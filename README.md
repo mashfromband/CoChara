@@ -9,27 +9,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 1. `.env`ファイルを設定します：
 
 ```bash
-# Google Cloud Storage設定
-# サービスアカウントキーのJSONをそのまま環境変数に設定
-GCP_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"あなたのプロジェクトID","private_key_id":"...","private_key":"...","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}'
-
-
-# または、Supabase設定（代替ストレージとして）
-# NEXT_PUBLIC_SUPABASE_URL="あなたのSupabaseプロジェクトURL"
-# NEXT_PUBLIC_SUPABASE_ANON_KEY="あなたのSupabase匿名キー"
-# SUPABASE_SERVICE_ROLE_KEY="あなたのSupabaseサービスロールキー"
+# MinIO (S3互換) 設定
+# 例) MINIO_ENDPOINT=http://127.0.0.1:9000
+MINIO_ENDPOINT=
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
+# MinIO はパススタイルが無難
+MINIO_FORCE_PATH_STYLE=true
 ```
 
-2. Google Cloud Storageバケットをセットアップします：
+2. Docker で MinIO を起動します：
 
 ```bash
-pnpm setup-gcs
-```
-
-（または代替としてSupabaseストレージを使用する場合）
-
-```bash
-pnpm setup-storage
+docker compose up -d minio
+# コンソール: http://127.0.0.1:9001 (ユーザ/パス: minioadmin/minioadmin)
 ```
 
 ### 開発サーバーの起動
@@ -38,7 +31,7 @@ pnpm setup-storage
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:8500](http://localhost:8500) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
