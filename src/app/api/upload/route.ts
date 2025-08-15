@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { uploadFileToS3 } from '@/lib/s3';
+import { uploadFileToS3, getSignedUrlForObject } from '@/lib/s3';
 
 // MinIOクライアントの初期化チェック
 if (!process.env.MINIO_ENDPOINT || !process.env.MINIO_ACCESS_KEY || !process.env.MINIO_SECRET_KEY) {
@@ -10,7 +10,9 @@ if (!process.env.MINIO_ENDPOINT || !process.env.MINIO_ACCESS_KEY || !process.env
 }
 
 /**
- * ファイルアップロード処理のAPIエンドポイント
+ * ファイルアップロード処理のAPIエンドポイント（privateバケット前提）
+ * - アップロード後は「署名付きURL」を返します
+ * - レスポンスの fileUrl は互換性のため signedUrl と同じ値を返します
  * 
  * @param request - NextRequest オブジェクト
  * @returns NextResponse オブジェクト
@@ -61,20 +63,25 @@ export async function POST(request: NextRequest) {
     try {
       console.log(`アップロードAPI: バケット=${bucketName}, ファイル名=${fileName}, サイズ=${fileBuffer.length}バイト`);
       
-      const fileUrl = await uploadFileToS3(
+      const filePath = await uploadFileToS3(
         bucketName,
         fileName,
         fileBuffer,
         file.type
       );
 
-      console.log(`アップロード成功: ${fileUrl}`);
+      // private前提のため、取得用に署名付きURLを返却
+      const signedUrl = await getSignedUrlForObject(bucketName, fileName);
+
+      console.log(`アップロード成功: ${filePath}`);
       
       // 成功レスポンス
       return NextResponse.json({
         success: true,
-        fileUrl: fileUrl,
-        path: `${bucketName}/${fileName}`
+        filePath,              // 例: "bucket/key"
+        signedUrl,             // 一定時間だけ有効
+        fileUrl: signedUrl,    // 互換用フィールド
+        path: filePath,
       });
     } catch (uploadError) {
       console.error('MinIOアップロードエラー:', uploadError);

@@ -14,10 +14,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     <SessionProvider 
       // セッション取得時にクレデンシャルを含める
       basePath={`${baseUrl}/api/auth`}
-      options={{
-        clientMaxAge: 0, // 常に最新のセッション情報を取得
-        keepAlive: 60, // 60秒ごとにセッション情報を更新
-      }}
     >
       {children}
     </SessionProvider>
