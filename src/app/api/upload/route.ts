@@ -28,12 +28,31 @@ export async function POST(request: NextRequest) {
     // FormDataからファイルとメタデータを取得
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const bucketName = formData.get('bucketName') as string;
+    const requestedBucket = (formData.get('bucketName') as string) || '';
     const fileName = formData.get('fileName') as string;
 
-    if (!file || !bucketName || !fileName) {
+    if (!file || !fileName) {
       return NextResponse.json(
-        { error: 'ファイル、バケット名、ファイル名が必要です' },
+        { error: 'ファイルとファイル名が必要です' },
+        { status: 400 }
+      );
+    }
+
+    // MIMEタイプに応じてバケット名を決定（環境変数優先）
+    const IMAGE_BUCKET = process.env.MINIO_IMAGE_BUCKET || 'image';
+    const VIDEO_BUCKET = process.env.MINIO_VIDEO_BUCKET || 'video';
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    // もしクライアントからbucketNameが明示され、かつ画像/動画のいずれかに合致するならそれを使用
+    // ただし環境変数のデフォルトを優先するため、無効な値は上書き
+    let bucketName = requestedBucket;
+    if (isImage) bucketName = IMAGE_BUCKET;
+    if (isVideo) bucketName = VIDEO_BUCKET;
+
+    if (!bucketName) {
+      return NextResponse.json(
+        { error: 'バケット名を決定できませんでした' },
         { status: 400 }
       );
     }
@@ -70,7 +89,7 @@ export async function POST(request: NextRequest) {
         file.type
       );
 
-      // private前提のため、取得用に署名付きURLを返却
+      // private前提のため、取得用に署名付きURLを返却（必要に応じて期限は環境変数で調整可能）
       const signedUrl = await getSignedUrlForObject(bucketName, fileName);
 
       console.log(`アップロード成功: ${filePath}`);

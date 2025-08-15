@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession, SessionProvider } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { User, Edit2, Save, X } from 'lucide-react';
@@ -215,28 +215,23 @@ function ProfileContent() {
 
   // 認証状態に応じてリダイレクトまたはデータ取得
   useEffect(() => {
-    // ローカルストレージを使用してリダイレクト状態を管理
-    const hasRedirected = localStorage.getItem('profile_redirected') === 'true';
-    
-    if (status === 'unauthenticated' && !hasRedirected) {
-      // 未ログインの場合はログインページにリダイレクト（一度だけ）
-      console.log('Redirecting to login page...');
-      localStorage.setItem('profile_redirected', 'true');
-      router.push('/login');
-      // リダイレクト中もローディング状態を維持
+    if (status === 'loading') {
       setIsLoading(true);
-    } else if (status === 'authenticated') {
-      // 認証済みの場合はユーザーデータを更新
-      console.log('User is authenticated, refreshing data...');
-      localStorage.removeItem('profile_redirected'); // リダイレクトフラグをクリア
+      return;
+    }
+
+    if (status === 'unauthenticated' && !redirected) {
+      setRedirected(true);
+      router.replace('/login');
+      return;
+    }
+
+    if (status === 'authenticated') {
+      setRedirected(false);
       refreshUserData();
       setIsLoading(false);
-    } else if (status === 'loading') {
-      // ロード中はisLoadingをtrueのままにする
-      console.log('Authentication status is loading...');
-      setIsLoading(true);
     }
-  }, [status, router]); // 依存配列を最小限に
+  }, [status, router, redirected]);
   
 
   if (isLoading) {
@@ -390,11 +385,5 @@ function ProfileContent() {
   );
 }
 
-// メインのエクスポートコンポーネント - SessionProviderでラップ
-export default function ProfilePage() {
-  return (
-    <SessionProvider>
-      <ProfileContent />
-    </SessionProvider>
-  );
-}
+// メインのエクスポートコンポーネント - AuthProviderで既にSessionProviderが適用されているため不要
+export default ProfileContent;
