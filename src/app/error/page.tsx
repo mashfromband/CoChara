@@ -1,18 +1,22 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
 /**
  * エラーページ (/error)
  * NextAuth の pages.error でリダイレクトされる先。
  * クエリパラメータ `error` を読み取り、ユーザーにわかりやすいメッセージを表示します。
+ * サーバーコンポーネントとして searchParams を受け取り、ビルド時のCSRバイアウト警告を回避します。
  */
-export default function ErrorPage() {
-  const searchParams = useSearchParams();
+export default async function ErrorPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Next.js 15: searchParams は Promise になるため await する
+  const sp = (await searchParams) ?? undefined;
 
   // エラーコードを取得（未定義でも安全に扱う）
-  const errorCode = searchParams.get("error") ?? undefined;
+  const errorParam = sp?.error;
+  const errorCode = Array.isArray(errorParam) ? errorParam[0] : errorParam;
 
   // 代表的な NextAuth エラーコードをユーザ向けメッセージに変換
   const errorMessageMap: Record<string, string> = {
