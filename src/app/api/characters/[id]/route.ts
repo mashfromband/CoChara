@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // キャラクター詳細取得API
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // セッションからユーザー情報を取得
@@ -18,7 +18,7 @@ export async function GET(
       )
     }
     
-    const characterId = params.id
+    const { id: characterId } = await params
     
     if (!characterId) {
       return NextResponse.json(
@@ -72,7 +72,7 @@ export async function GET(
 // キャラクター更新API
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // セッションからユーザー情報を取得
@@ -85,7 +85,7 @@ export async function PATCH(
       )
     }
     
-    const characterId = params.id
+    const { id: characterId } = await params
     
     if (!characterId) {
       return NextResponse.json(
