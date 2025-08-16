@@ -159,3 +159,37 @@ pnpm type-check
 rm -rf .next
 pnpm build
 ```
+
+## 🔌 リアルタイム機能 (Socket.IO + Redis)
+
+- 本プロジェクトはリアルタイム機能として Socket.IO を採用し、拡張性のために Redis のPub/Subを準備しています（OSS/無料で利用可能な構成）。
+- サーバーはNext.jsと同一ポートで稼働し、パスは「/api/socket」です。
+
+### 必要な環境変数
+
+- NEXT_PUBLIC_API_URL: クライアントからの接続先（例: http://localhost:8500）
+- REDIS_HOST: 例) localhost（Docker Composeならサービス名: redis）
+- REDIS_PORT: 6379（デフォルト）
+- REDIS_PASSWORD: 任意（開発では未設定でも可）
+
+.env.exampleの該当箇所を参考にしてください。
+
+### 開発サーバー
+
+- 起動コマンド: `pnpm dev`
+- ポート: 8500（package.jsonのscripts定義）
+- Socket.IOパス: `/api/socket`（同一ポート）
+
+### 動作確認手順（ローカル）
+
+1. `pnpm install` で依存関係をインストール
+2. 必要に応じて `docker-compose.yml` の Redis を起動（`docker compose up -d redis`）
+3. `pnpm dev` で開発サーバーを起動（http://localhost:8500）
+4. ブラウザで同じキャラクター詳細URL（例: `/character/test-123`）を2つのタブで開く
+5. 片方で「コンテンツを追加」を実行すると、もう片方にもステータスが同期されます（「LIVE同期中」バッジが表示されます）
+
+### 参考実装（コード位置）
+
+- クライアントフック: <mcfile name="useSocket.ts" path="/Users/makhmeto/Private/cochara/src/hooks/useSocket.ts"></mcfile>
+- サーバーエンドポイント: <mcfile name="route.ts" path="/Users/makhmeto/Private/cochara/src/app/api/socket/route.ts"></mcfile>
+- キャラクター詳細への統合: <mcfile name="page.tsx" path="/Users/makhmeto/Private/cochara/src/app/character/[id]/page.tsx"></mcfile>

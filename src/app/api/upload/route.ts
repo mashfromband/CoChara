@@ -89,17 +89,14 @@ export async function POST(request: NextRequest) {
         file.type
       );
 
-      // private前提のため、取得用に署名付きURLを返却（必要に応じて期限は環境変数で調整可能）
-      const signedUrl = await getSignedUrlForObject(bucketName, fileName);
-
       console.log(`アップロード成功: ${filePath}`);
       
-      // 成功レスポンス
+      // 成功レスポンス（署名URLは返さず、オブジェクトキーのみ返す）
+      // フロントエンドはこのキーをDBに保存し、表示時に署名URLを生成する
       return NextResponse.json({
         success: true,
         filePath,              // 例: "bucket/key"
-        signedUrl,             // 一定時間だけ有効
-        fileUrl: signedUrl,    // 互換用フィールド
+        fileUrl: filePath,     // オブジェクトキー（DBに保存される値）
         path: filePath,
       });
     } catch (uploadError) {

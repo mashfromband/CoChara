@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/prisma';
 import { NextRequest } from 'next/server';
+import { getSignedUrlForObject } from '@/lib/s3';
 
 // Next.js App Routerでは、getServerSession()を引数なしで呼び出すことができます
 const getSession = async () => {
@@ -114,11 +115,27 @@ export async function PATCH(request: NextRequest) {
       },
     });
     
+    // 表示用の署名URLを生成（image が "bucket/key" 形式の場合）
+    let signedImageUrl: string | null = null;
+    try {
+      if (updatedUser.image && typeof updatedUser.image === 'string' && !updatedUser.image.startsWith('http')) {
+        const parts = updatedUser.image.split('/');
+        if (parts.length >= 2) {
+          const bucket = parts[0];
+          const key = parts.slice(1).join('/');
+          signedImageUrl = await getSignedUrlForObject(bucket, key);
+        }
+      }
+    } catch (e) {
+      console.warn('署名URL生成に失敗しましたが処理を継続します:', e);
+    }
+
     return NextResponse.json({
       user: {
         ...updatedUser,
         createdAt: updatedUser.createdAt?.toISOString(),
       },
+      signedImageUrl,
     });
   } catch (error) {
     console.error('Error updating user profile:', error);

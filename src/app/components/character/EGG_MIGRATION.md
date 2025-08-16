@@ -7,7 +7,7 @@
 ## 変更内容
 
 1. 新しい `EggImage` コンポーネントを作成
-   - SVGの代わりに画像ファイルを表示
+   - PNG画像を優先表示し、存在しない場合は同名のSVGにフォールバック
    - 画像が見つからない場合はTailwindのグラデーションを使用したプレースホルダーを表示
 
 2. 既存のコンポーネントを修正
@@ -16,13 +16,24 @@
 
 3. 画像ファイルの保存場所
    - `/public/images/eggs/` ディレクトリに各卵タイプのIDに対応する名前で保存
-   - 例: `classic.png`, `pastel.png`, `cosmic.png` など
+   - 命名規則（現行）:
+     - 基本: `{id}.png`（例: `classic.png`, `pastel.png`, `cosmic.png`）
+     - 任意: `{id}_egg.svg`（PNGが無い場合のフォールバック用、例: `classic_egg.svg`）
 
 ## 画像ファイルの仕様
 
 - 推奨サイズ: 240px × 360px (幅 × 高さ)
 - 形式: PNG (透過背景推奨)
 - 解像度: 72dpi以上
+
+## レンダリングルール（実装）
+
+- `EggImage` は以下の順で読み込みを試みます：
+  1. `/images/eggs/{id}.png`
+  2. `/images/eggs/{id}_egg.svg`（PNGが無い場合）
+  3. どちらも無い場合はグラデーションのプレースホルダー
+
+> 旧仕様（{id}_egg_low.png / _medium.png / _high.png）は廃止しました。
 
 ## 今後の対応
 

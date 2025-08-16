@@ -25,14 +25,16 @@ const EggSelection: React.FC<EggSelectionProps> = ({
   const { data: session } = useSession()
   // ユーザー名が「Admin」の場合、管理者権限を付与
   const isAdmin = session?.user?.name === 'Admin'
+  // ユーザーごとにローカルストレージのキーを分離
+  const storageKeySuffix = session?.user?.email ?? 'guest'
   
-  // LocalStorageから現在のガチャ状態を取得
+  // LocalStorageから現在のガチャ状態を取得（ユーザー別キー）
   const [currentGachaState, setCurrentGachaState] = useLocalStorage<{
     randomEggs: string[],
     selectedEgg: string | null,
     canReroll: boolean,
     rerollCount: number
-  }>('currentGachaState', {
+  }>(`currentGachaState:${storageKeySuffix}`, {
     randomEggs: [],
     selectedEgg: null,
     canReroll: true,
@@ -78,44 +80,27 @@ const EggSelection: React.FC<EggSelectionProps> = ({
       setShowGachaOption(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [excludeEggIds, isAfterThirdEgg])
-  
-  // 3つのランダムな卵を生成する関数
-  const generateRandomEggs = (): EggType[] => {
-    const newEggs: EggType[] = []
-    
-    for (let i = 0; i < 3; i++) {
-      let newEgg = getWeightedRandomEggType()
-      
-      // 取得済みの卵や、既に選ばれた卵が選ばれた場合は再抽選
-      let attempts = 0
-      const maxAttempts = 10 // 無限ループ防止
-      
-      while ((excludeEggIds.includes(newEgg.id) || newEggs.some(egg => egg?.id === newEgg.id)) && attempts < maxAttempts) {
-        newEgg = getWeightedRandomEggType()
-        attempts++
+  }, [excludeEggIds, isAfterThirdEgg, storageKeySuffix])
+
+  // レアリティに基づいた卵を3つ生成（取得済みの卵は除外）
+  const generateRandomEggs = () => {
+    const eggs: EggType[] = []
+    const excluded = new Set(excludeEggIds)
+
+    while (eggs.length < 3) {
+      const egg = getWeightedRandomEggType()
+      if (!excluded.has(egg.id) && !eggs.some(e => e.id === egg.id)) {
+        eggs.push(egg)
       }
-      
-      // 全ての卵が取得済みの場合や、maxAttemptsに達した場合は、取得済みでない卵をフィルタリングして選択
-      if (attempts >= maxAttempts) {
-        const availableEggs = eggTypes.filter(egg => 
-          !excludeEggIds.includes(egg.id) && !newEggs.some(selectedEgg => selectedEgg?.id === egg.id)
-        )
-        if (availableEggs.length > 0) {
-          newEgg = availableEggs[Math.floor(Math.random() * availableEggs.length)]
-        }
-      }
-      
-      newEggs.push(newEgg)
     }
-    
-    return newEggs
+
+    return eggs
   }
 
   const handleEggSelect = (eggId: string) => {
     setSelectedEgg(eggId)
     
-    // LocalStorageに選択状態を保存
+    // LocalStorageに選択状態を保存（ユーザー別キー）
     setCurrentGachaState({
       ...currentGachaState,
       selectedEgg: eggId
@@ -123,10 +108,9 @@ const EggSelection: React.FC<EggSelectionProps> = ({
     
     const messages = [
       '何かが動いている...',
-      'まだ時期ではないようだ',
       '温かい鼓動を感じる',
-      'もう少しコンテンツを集めよう',
-      '神秘的な光を放っている'
+      '神秘的な光を放っている',
+      '君に選ばれるのを待っているみたいだ！'
     ]
     
     const randomMessage = messages[Math.floor(Math.random() * messages.length)]
@@ -134,7 +118,7 @@ const EggSelection: React.FC<EggSelectionProps> = ({
     
     setTimeout(() => setShowMessage(null), 3000)
   }
-  
+
   // 卵を再抽選する関数
   const handleReroll = () => {
     if (canReroll || isAdmin) {
@@ -152,7 +136,7 @@ const EggSelection: React.FC<EggSelectionProps> = ({
       
       setSelectedEgg(null)
       
-      // LocalStorageに状態を保存
+      // LocalStorageに状態を保存（ユーザー別キー）
       setCurrentGachaState({
         randomEggs: newEggs.map(egg => egg.id),
         selectedEgg: null,
@@ -177,7 +161,7 @@ const EggSelection: React.FC<EggSelectionProps> = ({
     const eggs = generateRandomEggs()
     setRandomEggs(eggs)
     
-    // LocalStorageに状態を保存
+    // LocalStorageに状態を保存（ユーザー別キー）
     setCurrentGachaState({
       ...currentGachaState,
       randomEggs: eggs.map(egg => egg.id)
@@ -193,7 +177,7 @@ const EggSelection: React.FC<EggSelectionProps> = ({
     const eggs = defaultEggs.slice(0, 3) // 最初の3つを表示
     setRandomEggs(eggs)
     
-    // LocalStorageに状態を保存
+    // LocalStorageに状態を保存（ユーザー別キー）
     setCurrentGachaState({
       ...currentGachaState,
       randomEggs: eggs.map(egg => egg.id)
@@ -313,20 +297,24 @@ const EggSelection: React.FC<EggSelectionProps> = ({
                 transition={{ duration: 1, delay: 0.5 }}
               >
                 {randomEggs.length > 2 && randomEggs.slice(1, 3).map((eggType, index) => (
-                  <EggCard
+                  <div
                     key={`${eggType.id}-triangle-${index + 1}`}
-                    eggType={eggType}
-                    isSelected={selectedEgg === eggType.id}
-                    onSelect={handleEggSelect}
-                    index={index + 1}
-                  />
+                    className={index === 1 ? 'ml-4' : ''}
+                  >
+                    <EggCard
+                      eggType={eggType}
+                      isSelected={selectedEgg === eggType.id}
+                      onSelect={handleEggSelect}
+                      index={index + 1}
+                    />
+                  </div>
                 ))}
               </motion.div>
             </div>
             
             {/* 小画面では縦に1列に並べる */}
             <motion.div
-              className="flex flex-col items-center gap-6 sm:hidden"
+              className="flex flex-col items-center gap-6 md:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1 }}

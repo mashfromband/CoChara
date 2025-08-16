@@ -12,11 +12,20 @@ interface EggImageProps {
   className?: string
   size?: number
   animated?: boolean
+  // 追加: 画像ソースの上書き（data URL や任意のURLを指定可能）
+  src?: string
 }
 
 /**
  * 卵の画像を表示するコンポーネント
- * SVGの代わりに画像ファイルを使用
+ * 画像ファイル（PNG優先、失敗時にSVGフォールバック）を使用
+ *
+ * サイズ仕様:
+ * - size は『幅(px)』として扱います。高さはアスペクト比(約1:1.5)を維持して自動計算されます。
+ * - 親から className で w-full/h-full が渡っても、inline style で上書きされるため size が優先されます。
+ *
+ * 拡張点:
+ * - src プロパティを指定すると、その画像ソースを優先的に使用します（例: data:image/svg+xml）。
  */
 const EggImage: React.FC<EggImageProps> = ({ 
   eggType, 
@@ -24,26 +33,19 @@ const EggImage: React.FC<EggImageProps> = ({
   onClick,
   className = '',
   size = 120,
-  animated = false
+  animated = false,
+  src
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   
-  // 卵タイプに基づいて画像パスを生成
+  /**
+   * 画像パス生成ルール:
+   * - PNG を最優先: /images/eggs/{id}.png
+   * - ロード失敗時は SVG (/images/eggs/{id}_egg.svg) にフォールバック
+   * - それでも失敗した場合はグラデーションのプレースホルダー表示
+   */
   const getEggImagePath = (eggId: string) => {
-    // SVGを優先的に使用（高品質表示が必要な場合）
-    if (size >= 300) {
-      return `/images/eggs/${eggId}_egg.svg`;
-    }
-    
-    // サイズに応じて適切な画質の画像を選択
-    let quality = 'medium';
-    if (size <= 80) {
-      quality = 'low';
-    } else if (size >= 200) {
-      quality = 'high';
-    }
-    
-    return `/images/eggs/${eggId}_egg_${quality}.png`;
+    return `/images/eggs/${eggId}.png`
   }
 
   return (
@@ -56,6 +58,9 @@ const EggImage: React.FC<EggImageProps> = ({
       onClick={onClick}
       animate={animated ? { y: [0, -10, 0] } : {}}
       transition={animated ? { repeat: Infinity, duration: 3 } : {}}
+      // size は幅(px)として適用。height は img の比率に任せるが、
+      // フォールバック時に高さが潰れないよう minHeight も設定。
+      style={{ width: size, height: size }}
     >
       {/* 卵の周りのスパークルエフェクト */}
       {(isSelected || animated) && (
@@ -69,39 +74,56 @@ const EggImage: React.FC<EggImageProps> = ({
       
       {/* 卵の画像 */}
       <motion.div
-        className={`${isSelected ? 'drop-shadow-2xl' : 'drop-shadow-lg'} transition-all duration-300`}
-        style={{ width: size, height: size * 1.5 }}
+        className={`${isSelected ? 'drop-shadow-2xl' : 'drop-shadow-lg'} transition-all duration-300 inline-block`}
+        style={{}}
         animate={{
-          filter: isHovered || isSelected || animated
+          filter: isHovered || isSelected || isSelected || animated
             ? 'drop-shadow(0 0 20px rgba(255,215,0,0.6))' 
             : 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'
         }}
       >
-        {/* 注意: 実際の画像ファイルはプロジェクトに含まれていないため、
-            画像が用意されるまではプレースホルダーとして表示します */}
+        {/* 注意: 画像は /public/images/eggs/ に {id}.png 形式で配置。存在しない場合は {id}_egg.svg を使用
+            ただし src が指定されている場合はそちらを優先する */}
         <div 
-          className={`w-full h-full flex items-center justify-center rounded-full overflow-hidden`}
+          className={`inline-flex items-center justify-center rounded-xl overflow-visible`}
         >
           <img 
-            src={getEggImagePath(eggType.id)} 
+            src={src ?? getEggImagePath(eggType.id)} 
             alt={`${eggType.name}の卵`}
-            className="w-full h-full object-contain"
+            className={`w-auto h-${size}px`}
+            loading="lazy"
             onError={(e) => {
-              const imgElement = e.currentTarget;
-              const currentSrc = imgElement.src;
-              
-              // SVGファイルが見つからない場合はPNG画像を試す
-              if (currentSrc.endsWith('.svg')) {
-                // SVGからPNGに切り替え
-                const pngSrc = currentSrc.replace('.svg', '_high.png');
-                imgElement.src = pngSrc;
-                return;
+              // src が明示的に与えられている場合はフォールバックせずプレースホルダーへ
+              if (src) {
+                const imgElement = e.currentTarget
+                imgElement.style.display = 'none'
+                const parent = imgElement.parentElement as HTMLElement
+                if (parent) {
+                  parent.style.width = `${size}px`
+                  parent.style.height = `${size}px`
+                  parent.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`
+                }
+                return
               }
-              
-              // 画像が見つからない場合はプレースホルダーとして表示
-              imgElement.style.display = 'none';
-              // 親要素にグラデーション背景を適用
-              imgElement.parentElement!.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`;
+
+              const imgElement = e.currentTarget
+              const currentSrc = imgElement.src
+
+              // PNGが見つからない場合はSVGにフォールバック
+              if (currentSrc.endsWith('.png')) {
+                imgElement.src = `/images/eggs/${eggType.id}_egg.svg`
+                return
+              }
+
+              // SVGも見つからない場合はプレースホルダーを表示
+              imgElement.style.display = 'none'
+              // ラッパーが潰れないようサイズを保持
+              const parent = imgElement.parentElement as HTMLElement
+              if (parent) {
+                parent.style.width = `${size}px`
+                parent.style.height = `${size}px`
+                parent.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`
+              }
             }}
           />
         </div>

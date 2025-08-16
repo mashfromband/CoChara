@@ -10,17 +10,22 @@ import { useSession } from 'next-auth/react'
 
 export default function CreateCharacterPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [isCreating, setIsCreating] = useState(false)
   const [userOwnedEggIds, setUserOwnedEggIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedEggHistory, setSelectedEggHistory] = useLocalStorage<string[]>('selectedEggHistory', [])
+  
+  // ユーザーごとにlocalStorageキーを分離
+  const storageKeySuffix = session?.user?.email ?? 'guest'
+  
+  const [selectedEggHistory, setSelectedEggHistory] = useLocalStorage<string[]>(`selectedEggHistory:${storageKeySuffix}`, [])
   const [currentGachaState, setCurrentGachaState] = useLocalStorage<{
     randomEggs: string[],
     selectedEgg: string | null,
     canReroll: boolean,
     rerollCount: number
-  }>('currentGachaState', {
+  }>(`currentGachaState:${storageKeySuffix}`, {
     randomEggs: [],
     selectedEgg: null,
     canReroll: true,
@@ -56,6 +61,13 @@ export default function CreateCharacterPage() {
     fetchUserEggs()
   }, [])
 
+  /**
+   * handleEggSelected
+   * 卵選択後に呼び出されるハンドラ。
+   * 1) 選択卵の履歴をユーザー別localStorageへ保存
+   * 2) 卵からキャラクター作成APIを呼び出し
+   * 3) 成功後にマイページ（/profile）へ遷移
+   */
   const handleEggSelected = async (eggId: string) => {
     setIsCreating(true)
     
@@ -91,15 +103,9 @@ export default function CreateCharacterPage() {
       // 成功時の処理
       console.log('卵ガチャ成功:', character)
       
-      // 少し待機してからキャラクター画面へ遷移
+      // 少し待機してからマイページへ遷移
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 実際のキャラクターIDを使用して遷移
-      if (character.id) {
-        window.location.href = `/character/${character.id}`
-      } else {
-        window.location.href = '/character/dashboard' // フォールバック
-      }
+      router.push('/profile')
       
     } catch (error: any) {
       console.error('卵ガチャエラー:', error)

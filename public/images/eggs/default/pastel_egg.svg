@@ -1,0 +1,21 @@
+<svg id="pastel-egg" width="180" height="220" viewBox="0 0 180 220" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="grad-pastel" cx="35%" cy="25%">
+                                <stop offset="0%" stop-color="rgba(253,242,248,1)"/>
+                                <stop offset="50%" stop-color="rgba(252,231,243,1)"/>
+                                <stop offset="100%" stop-color="rgba(243,232,255,1)"/>
+                            </radialGradient>
+                            <filter id="shadow-pastel">
+                                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(244,114,182,0.2)"/>
+                            </filter>
+                        </defs>
+                        <ellipse cx="90" cy="200" rx="35" ry="8" fill="rgba(244,114,182,0.1)"/>
+                        <ellipse cx="90" cy="130" rx="55" ry="75" fill="url(#grad-pastel)" stroke="#f472b6" stroke-width="2" filter="url(#shadow-pastel)"/>
+                        <!-- ハートパターン -->
+                        <path d="M50 110 Q75 105 100 110 Q95 125 75 130 Q55 125 50 110" fill="rgba(244,114,182,0.3)"/>
+                        <path d="M110 140 Q125 135 140 140 Q135 150 125 155 Q115 150 110 140" fill="rgba(244,114,182,0.2)"/>
+                        <!-- ハイライト -->
+                        <ellipse cx="70" cy="100" rx="12" ry="18" fill="rgba(255,255,255,0.8)"/>
+                        <ellipse cx="75" cy="105" rx="4" ry="6" fill="rgba(255,255,255,1)"/>
+                        <circle cx="78" cy="108" r="1.5" fill="rgba(255,255,255,1)"/>
+                    </svg>

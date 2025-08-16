@@ -31,6 +31,36 @@ services:
     volumes:
       - minio_data:/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: cochara_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  stable-diffusion:
+    image: ghcr.io/automatic1111/stable-diffusion-webui:latest
+    container_name: cochara_sd
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    command: ["--api", "--listen", "--port", "7860"]
+    volumes:
+      - sd_data:/app/models
+
+  rembg:
+    image: danielgatis/rembg:latest
+    container_name: cochara_rembg
+    restart: unless-stopped
+    ports:
+      - "7000:7000"
+    command: ["s", "--host", "0.0.0.0", "--port", "7000"]
+
 volumes:
   postgres_data:
   minio_data:
+  redis_data:
+  sd_data:

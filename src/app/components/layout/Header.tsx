@@ -51,9 +51,20 @@ const Header = () => {
                 </>
               ) : (
                 <div className="flex items-center space-x-3">
-                  <Link href="/profile" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                    <div className="bg-indigo-800 p-1.5 rounded-full">
-                      <User size={18} className="text-white" />
+                  <Link href="/profile" prefetch={false} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                    <div className="bg-indigo-800 p-1.5 rounded-full overflow-hidden w-8 h-8 flex items-center justify-center">
+                      {session?.user?.image ? (
+                        <img
+                          src={session.user.image as string}
+                          alt="アバター"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <User size={18} className="text-white" />
+                      )}
                     </div>
                     <span className="text-white font-medium">{session?.user?.name}</span>
                   </Link>
@@ -135,11 +146,23 @@ const Header = () => {
                   <li className="pt-2 border-t border-indigo-500 mt-2">
                     <Link 
                       href="/profile" 
+                      prefetch={false}
                       className="flex items-center space-x-2 px-3 py-2 hover:bg-indigo-700 transition-colors"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <div className="bg-indigo-800 p-1.5 rounded-full">
-                        <User size={18} className="text-white" />
+                      <div className="bg-indigo-800 p-1.5 rounded-full overflow-hidden w-8 h-8 flex items-center justify-center">
+                        {session?.user?.image ? (
+                          <img
+                            src={session.user.image as string}
+                            alt="アバター"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <User size={18} className="text-white" />
+                        )}
                       </div>
                       <span className="text-white font-medium">{session?.user?.name}</span>
                     </Link>

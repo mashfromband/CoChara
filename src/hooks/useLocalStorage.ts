@@ -22,10 +22,11 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
   // 状態を保持
   const [storedValue, setStoredValue] = useState<T>(initialValue);
 
-  // 初回マウント時にローカルストレージから値を読み込む
+  // 初回マウント時とキー変更時にローカルストレージから値を読み込む
   useEffect(() => {
     setStoredValue(readValue());
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   // 値を設定する関数
   const setValue = (value: T) => {
