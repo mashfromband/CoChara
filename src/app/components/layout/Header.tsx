@@ -156,6 +156,8 @@ const Header = () => {
                             src={session.user.image as string}
                             alt="アバター"
                             className="w-full h-full object-cover"
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                             }}

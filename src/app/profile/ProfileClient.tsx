@@ -27,7 +27,7 @@ const formatDate = (dateString: string) => {
 // プロフィールページのメインコンポーネント
 /**
  * プロフィールページ
- * - 卵の一覧カードではEggImage(size=80)の高さ(120px)に対してコンテナをw-24 h-32に設定し、切れを防止
+ * - 卵の一覧カードでは EggImage(size=80) の幅指定に従い、高さは画像の実アスペクト比（onLoadで算出）で自動決定
  * - API未接続環境ではlocalStorageのselectedEggHistoryからダミー表示
  */
 function ProfileContent() {
@@ -64,27 +64,70 @@ function ProfileContent() {
   };
 
   // APIからユーザー情報を取得する関数
+  /**
+   * refreshUserData
+   * - /api/user/profile でユーザー基本情報を取得
+   * - /api/characters でサーバー保存のキャラクター一覧を取得し、eggTypeId を EggType に補完
+   * - いずれかのAPIが失敗した場合はローカルストレージからのフォールバックを使用
+   */
   const refreshUserData = async () => {
     try {
       setIsLoading(true);
-      
-      // 開発中はAPIリクエストをスキップしてダミーデータを使用
-      // 本番環境では以下のコメントを外してAPIリクエストを有効化
-      /*
-      // APIからユーザー情報を取得
-      const response = await fetch('/api/user/profile');
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'ユーザー情報の取得に失敗しました');
+
+      // APIからユーザー情報とキャラクター一覧を並列取得
+      type ApiCharacter = {
+        id: string;
+        name: string;
+        eggTypeId: string;
+        stats: Character['stats'];
+        evolutionHistory: Character['evolutionHistory'];
+        createdAt: string;
+        updatedAt: string;
+        ownerId: string;
+        sharedWith: string[];
+      };
+
+      try {
+        const [profileRes, charactersRes] = await Promise.all([
+          fetch('/api/user/profile'),
+          fetch('/api/characters'),
+        ]);
+
+        if (!profileRes.ok || !charactersRes.ok) {
+          throw new Error('APIレスポンスが不正です');
+        }
+
+        const profileData = await profileRes.json();
+        const { characters }: { characters: ApiCharacter[] } = await charactersRes.json();
+
+        // eggTypeId から EggType オブジェクトへ補完
+        const enrichedCharacters: Character[] = characters.map((c) => {
+          const eggType = getEggTypeById(c.eggTypeId);
+          return {
+            id: c.id,
+            name: c.name,
+            eggType: eggType!,
+            stats: c.stats,
+            evolutionHistory: c.evolutionHistory,
+            createdAt: new Date(c.createdAt),
+            updatedAt: new Date(c.updatedAt),
+            ownerId: c.ownerId,
+            sharedWith: c.sharedWith,
+          } as Character;
+        }).filter((c) => Boolean(c.eggType));
+
+        setUserData({
+          ...(profileData.user || {}),
+          createdAt: profileData.user?.createdAt,
+          characters: enrichedCharacters,
+        });
+
+        return; // 正常に設定できたらフォールバックへは行かない
+      } catch (apiError) {
+        console.warn('API取得に失敗、ローカルフォールバックを使用します:', apiError);
       }
-      
-      const data = await response.json();
-      setUserData(data.user);
-      */
-      
-      // 開発中はダミーデータを使用
-      // localStorage から選択した卵の履歴を取得
+
+      // ===== フォールバック: ローカルストレージの履歴からダミー生成 =====
       let selectedEggHistory: string[] = [];
       try {
         const storageKeySuffix = session?.user?.email ?? 'guest'
@@ -95,30 +138,28 @@ function ProfileContent() {
       } catch (localStorageError) {
         console.warn('LocalStorage読み取りエラー:', localStorageError);
       }
-      
-      // 選択された卵からキャラクターデータを作成
+
       const characters: Character[] = selectedEggHistory.map((eggId, index) => {
         const eggType = getEggTypeById(eggId);
-        if (!eggType) return null;
-        
+        if (!eggType) return null as any;
         return {
           id: `char-${index + 1}`,
-          name: `${eggType.name}の卵`,
+          name: eggType.name,
           eggType: eggType,
           stats: {
-            level: 1, // ダミーデータは常にLv.1で表示（ランダムにしない）
-            experience: Math.floor(Math.random() * 150), // ランダム経験値 0-149
-            contentCount: Math.floor(Math.random() * 5), // ランダムコンテンツ数 0-4
-            evolutionStage: 0
+            level: 1,
+            experience: Math.floor(Math.random() * 150),
+            contentCount: Math.floor(Math.random() * 5),
+            evolutionStage: 0,
           },
           evolutionHistory: [],
           ownerId: 'dummy-id',
           sharedWith: [],
           createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          updatedAt: new Date(),
+        } as Character;
       }).filter(Boolean) as Character[];
-      
+
       if (session?.user) {
         setUserData({
           id: (session.user.id as string) || 'dummy-id',
@@ -126,7 +167,7 @@ function ProfileContent() {
           email: session.user.email || 'test@example.com',
           image: (session.user.image as string) || undefined,
           createdAt: new Date().toISOString(),
-          characters: characters
+          characters: characters,
         });
       } else {
         setUserData({
@@ -135,7 +176,7 @@ function ProfileContent() {
           email: 'test@example.com',
           image: undefined,
           createdAt: new Date().toISOString(),
-          characters: characters
+          characters: characters,
         });
       }
     } finally {
@@ -282,6 +323,8 @@ function ProfileContent() {
                     src={(session?.user?.image as string) || (userData?.image as string)}
                      alt="プロフィール画像"
                      className="w-full h-full object-cover"
+                     draggable={false}
+                     onContextMenu={(e) => e.preventDefault()}
                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                    />
                  ) : (

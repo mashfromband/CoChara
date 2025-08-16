@@ -46,7 +46,7 @@ export const eggTypes: EggType[] = [
   {
     id: 'fire',
     name: 'ファイアー',
-    description: '情熱的なオレンジから赤のグラデーション。炎のような模様が特徴的で、エネルギッシュで活動的なキャラクターへ。',
+    description: '情熱的なオレンジから赤のグラデーション。炎のような模様が特性的で、エネルギッシュで活動的なキャラクターへ。',
     gradient: 'from-yellow-200 via-orange-400 to-red-600',
     strokeColor: 'stroke-red-600',
     pattern: 'flames',

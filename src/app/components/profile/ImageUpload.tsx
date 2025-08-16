@@ -146,6 +146,8 @@ export default function ImageUpload({
               src={previewUrl} 
               alt="プレビュー" 
               className="w-full h-full object-cover"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           ) : currentImage ? (
             // 現在の画像
@@ -153,6 +155,8 @@ export default function ImageUpload({
               src={currentImage} 
               alt="現在のプロフィール画像" 
               className="w-full h-full object-cover"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const parent = e.currentTarget.parentElement!;

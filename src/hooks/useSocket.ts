@@ -4,12 +4,29 @@ import { io, Socket } from 'socket.io-client';
 /**
  * Socket.IOクライアント用のカスタムフック
  * リアルタイム機能（チャット、共有編集、通知等）で使用
+ *
+ * 環境変数で有効/無効を切り替え可能:
+ * - NEXT_PUBLIC_ENABLE_SOCKET: 'true' | '1' で有効化（デフォルトは無効）
+ * - 同一ポート・同一パス(`/api/socket`)で接続します
  */
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
 
+  // Socketを有効化するか判定（デフォルト: 無効）
+  const SOCKET_ENABLED =
+    (process.env.NEXT_PUBLIC_ENABLE_SOCKET || '').toLowerCase() === 'true' ||
+    process.env.NEXT_PUBLIC_ENABLE_SOCKET === '1';
+
   useEffect(() => {
+    // 無効の場合は接続しない（APIの500ログを防止）
+    if (!SOCKET_ENABLED) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[useSocket] Socket.IO is disabled (set NEXT_PUBLIC_ENABLE_SOCKET=true to enable).');
+      }
+      return;
+    }
+
     // Socket.IOクライアントを初期化
     socketRef.current = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8500', {
       path: '/api/socket',
@@ -33,7 +50,7 @@ export function useSocket() {
         socket.disconnect();
       }
     };
-  }, []);
+  }, [SOCKET_ENABLED]);
 
   /**
    * 指定したルームに参加

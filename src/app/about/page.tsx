@@ -67,7 +67,7 @@ export default function AboutPage() {
 
           <div className="text-center mt-12">
             <Link href="/character/create" className="bg-white text-indigo-700 px-8 py-3 rounded-full font-bold text-lg hover:bg-indigo-100 transition-colors inline-block">
-              キャラクターを作る
+              卵を手に入れる
             </Link>
           </div>
         </main>

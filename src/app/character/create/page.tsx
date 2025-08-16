@@ -89,7 +89,7 @@ export default function CreateCharacterPage() {
         },
         body: JSON.stringify({
           eggTypeId: eggId,
-          name: `${selectedEgg.name}の卵`,
+          // name は未指定：サーバー側で色ベース命名（Mastraツール/フォールバック）
         }),
       })
 

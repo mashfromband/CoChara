@@ -17,7 +17,7 @@ interface EggCardProps {
 
 /**
  * 卵カードコンポーネント
- * - コンテナ高(h-72)とEggImageのsize(192)を合わせて、縦横比1:1.5の卵画像が切れないように調整
+ * - EggImage は width=size を基準にし、高さは画像の実アスペクト比（onLoadで算出）により自動調整
  * - カード全体高さをh-[520px]に拡大し、テキストやボタンが被らないようにしています
  * - カード本体をflex-col + overflow-hiddenにして、情報エリアをflex-1で伸縮、
  *   ボタンはmt-autoで下端に固定することでボタンのはみ出しを防止
@@ -85,7 +85,7 @@ const EggCard: React.FC<EggCardProps> = ({
         </div>
 
         <div className='flex flex-col'>
-          {/* 特徴タグ */}
+          {/* 特性タグ */}
           <div className="flex flex-wrap justify-center gap-2">
             {eggType.characteristics.map((characteristic, i) => (
               <span

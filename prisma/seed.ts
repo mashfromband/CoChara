@@ -14,10 +14,7 @@ async function main() {
   await prisma.contentItem.deleteMany({});
   await prisma.character.deleteMany({});
   await prisma.eggCollection.deleteMany({});
-  await prisma.account.deleteMany({});
-  await prisma.session.deleteMany({});
   await prisma.user.deleteMany({});
-  await prisma.verificationToken.deleteMany({});
   console.log('データベースのリセットが完了しました');
 
   // 管理ユーザーの作成（パスワードは環境変数 or ランダム生成）

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { EggType } from '@/types/character'
 import Sparkle from '../ui/Sparkle'
@@ -37,20 +37,41 @@ const EggImage: React.FC<EggImageProps> = ({
   src
 }) => {
   const [isHovered, setIsHovered] = useState(false)
+  const [imageKey, setImageKey] = useState(0) // 画像の強制再レンダリング用
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
+  // 追加: キャッシュバスターと再試行回数
+  const [cacheBuster, setCacheBuster] = useState<number | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  // 追加: 画像のアスペクト比 (height / width)。基準画像に合わせデフォルトは1:1
+  const [aspectRatio, setAspectRatio] = useState(1)
   
   /**
    * 画像パス生成ルール:
-   * - PNG を最優先: /images/eggs/{id}.png
-   * - ロード失敗時は SVG (/images/eggs/{id}_egg.svg) にフォールバック
-   * - それでも失敗した場合はグラデーションのプレースホルダー表示
+   * - PNG を最優先: /images/eggs/default/{id}.png
+   * - ロード失敗時は SVG へは切り替えず、グラデーションのプレースホルダー表示に移行
    */
   const getEggImagePath = (eggId: string) => {
-    return `/images/eggs/${eggId}.png`
+    return `/images/eggs/default/${eggId}.png`
   }
+
+  // src や eggType.id が変更された場合に画像を強制リロード
+  useEffect(() => {
+    setImageKey(prev => prev + 1)
+    setIsLoading(true)
+    setHasError(false)
+    setCacheBuster(null)
+    setRetryCount(0)
+    // 基準画像サイズ(正方形)に合わせて一旦 1:1 に戻す
+    setAspectRatio(1)
+  }, [src, eggType.id])
+
+  const actualSrc = src ?? getEggImagePath(eggType.id)
+  const computedSrc = cacheBuster ? `${actualSrc}${actualSrc.includes('?') ? '&' : '?'}v=${cacheBuster}` : actualSrc
 
   return (
     <motion.div
-      className={`relative ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`relative flex items-center justify-center ${onClick ? 'cursor-pointer' : ''} ${className}`}
       whileHover={onClick ? { scale: 1.05 } : {}}
       whileTap={onClick ? { scale: 0.95 } : {}}
       onHoverStart={() => setIsHovered(true)}
@@ -58,9 +79,8 @@ const EggImage: React.FC<EggImageProps> = ({
       onClick={onClick}
       animate={animated ? { y: [0, -10, 0] } : {}}
       transition={animated ? { repeat: Infinity, duration: 3 } : {}}
-      // size は幅(px)として適用。height は img の比率に任せるが、
-      // フォールバック時に高さが潰れないよう minHeight も設定。
-      style={{ width: size, height: size }}
+      // size は基準画像(正方形)の『幅(px)』。高さは読み込んだ画像のアスペクト比で自動計算
+      style={{ width: size, height: size * aspectRatio }}
     >
       {/* 卵の周りのスパークルエフェクト */}
       {(isSelected || animated) && (
@@ -85,45 +105,75 @@ const EggImage: React.FC<EggImageProps> = ({
         {/* 注意: 画像は /public/images/eggs/ に {id}.png 形式で配置。存在しない場合は {id}_egg.svg を使用
             ただし src が指定されている場合はそちらを優先する */}
         <div 
-          className={`inline-flex items-center justify-center rounded-xl overflow-visible`}
+          className={`mx-auto inline-flex items-center justify-center rounded-xl overflow-visible`}
+          style={hasError ? {
+            width: `${size}px`,
+            height: `${size * aspectRatio}px`,
+            background: getTailwindGradientValue(eggType.gradient)
+          } : {}}
         >
           <img 
-            src={src ?? getEggImagePath(eggType.id)} 
-            alt={`${eggType.name}の卵`}
-            className={`w-auto h-${size}px`}
+            key={imageKey} // 強制再レンダリング用のキー
+            src={computedSrc} 
+            alt={eggType.name}
+            className={`block w-auto`}
+            style={{ 
+              width: `${size}px`,
+              height: `${size * aspectRatio}px`,
+              objectFit: 'contain',
+              display: hasError ? 'none' : 'block',
+              visibility: 'visible'
+            }}
             loading="lazy"
-            onError={(e) => {
-              // src が明示的に与えられている場合はフォールバックせずプレースホルダーへ
-              if (src) {
-                const imgElement = e.currentTarget
-                imgElement.style.display = 'none'
-                const parent = imgElement.parentElement as HTMLElement
-                if (parent) {
-                  parent.style.width = `${size}px`
-                  parent.style.height = `${size}px`
-                  parent.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`
-                }
-                return
-              }
-
+            draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            onLoad={(e) => {
+              console.log(`✅ 画像ロード成功: ${computedSrc}`)
+              // 画像ロード成功時：状態をリセットし確実に表示
+              setIsLoading(false)
+              setHasError(false)
+              setRetryCount(0)
+              setCacheBuster(null)
+              // naturalサイズからアスペクト比を計算
               const imgElement = e.currentTarget
-              const currentSrc = imgElement.src
-
-              // PNGが見つからない場合はSVGにフォールバック
-              if (currentSrc.endsWith('.png')) {
-                imgElement.src = `/images/eggs/${eggType.id}_egg.svg`
-                return
-              }
-
-              // SVGも見つからない場合はプレースホルダーを表示
-              imgElement.style.display = 'none'
-              // ラッパーが潰れないようサイズを保持
+              const naturalW = imgElement.naturalWidth || size
+              const naturalH = imgElement.naturalHeight || size
+              const ratio = naturalW > 0 ? naturalH / naturalW : 1
+              setAspectRatio(ratio || 1)
+              imgElement.style.display = 'block'
+              imgElement.style.visibility = 'visible'
               const parent = imgElement.parentElement as HTMLElement
               if (parent) {
-                parent.style.width = `${size}px`
-                parent.style.height = `${size}px`
-                parent.className += ` bg-gradient-to-b ${getGradientClasses(eggType.gradient)}`
+                clearPlaceholderStyles(parent)
               }
+            }}
+            onError={(e) => {
+              console.error(`❌ 画像ロードエラー: ${computedSrc}`)
+              // ロードエラー時の処理
+              setIsLoading(false)
+              
+              // 一度だけキャッシュバスターで即時再試行（ブラウザキャッシュや部分コンテンツの影響を避ける）
+              if (retryCount < 1) {
+                const b = Date.now()
+                console.warn(`↻ リトライ実行: ${actualSrc} ?v=${b}`)
+                setRetryCount(retryCount + 1)
+                setHasError(false)
+                setCacheBuster(b)
+                return
+              }
+
+              // src が明示的に与えられている場合はフォールバックせずプレースホルダーへ
+              if (src) {
+                setHasError(true)
+                const imgElement = e.currentTarget
+                imgElement.style.display = 'none'
+                return
+              }
+
+              // PNGが見つからない/ロード失敗時はプレースホルダーを表示（SVGへの切替は行わない）
+              setHasError(true)
+              const imgElement = e.currentTarget
+              imgElement.style.display = 'none'
             }}
           />
         </div>
@@ -148,6 +198,30 @@ const EggImage: React.FC<EggImageProps> = ({
 const getGradientClasses = (gradient: string): string => {
   // 例: from-white via-blue-50 to-blue-100 → bg-white via-blue-50 to-blue-100
   return gradient.replace('from-', 'bg-')
+}
+
+/**
+ * Tailwind CSSのグラデーション用プレースホルダーを除去
+ * - 画像が後から成功ロードされた場合に背景を元に戻すために使用
+ */
+function clearPlaceholderStyles(parent: HTMLElement) {
+  // サイズ指定を除去（本来はコンテンツサイズにフィット）
+  parent.style.width = ''
+  parent.style.height = ''
+  parent.style.background = ''
+
+  // 追加されている可能性のある背景系クラスや非表示系ユーティリティを除去
+  const tokens = parent.className.split(' ').filter(Boolean)
+  const filtered = tokens.filter(
+    (t) =>
+      t !== 'bg-gradient-to-b' &&
+      !t.startsWith('bg-') &&
+      !t.startsWith('via-') &&
+      !t.startsWith('to-') &&
+      t !== 'hidden' &&
+      t !== 'invisible'
+  )
+  parent.className = filtered.join(' ')
 }
 
 /**

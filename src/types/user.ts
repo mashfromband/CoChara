@@ -11,34 +11,7 @@ export interface User {
   updatedAt: Date
 }
 
-export interface Session {
-  id: string
-  sessionToken: string
-  userId: string
-  expires: Date
-  user: User
-}
-
-export interface Account {
-  id: string
-  userId: string
-  type: string
-  provider: string
-  providerAccountId: string
-  refresh_token?: string
-  access_token?: string
-  expires_at?: number
-  token_type?: string
-  scope?: string
-  id_token?: string
-  session_state?: string
-}
-
-export interface VerificationToken {
-  identifier: string
-  token: string
-  expires: Date
-}
+// Session/Account/VerificationToken は Prisma から削除したため、ここでの型定義も不要になりました。
 
 export interface EggCollection {
   id: string

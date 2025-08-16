@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { getEggTypeById } from '@/data/eggTypes'
 import { prisma } from '@/lib/prisma'
+import { generateColorBasedName } from '@/lib/agents/color-name-agent'
 
 // 卵ガチャAPI
 export async function POST(request: Request) {
@@ -48,6 +49,26 @@ export async function POST(request: Request) {
         { status: 404 }
       )
     }
+
+    /**
+     * キャラクター名の決定
+     * - フロントからnameが来ていればそれを優先
+     * - ない場合、Mastraツール（フォールバック含む）で卵の色から日本語名を生成
+     * - 失敗時は eggType.name をフォールバック
+     */
+    let characterName: string | undefined = name
+    if (!characterName) {
+      try {
+        characterName = await generateColorBasedName(
+          eggType.gradient,
+          eggType.strokeColor,
+          eggType.pattern
+        )
+      } catch (genErr) {
+        console.warn('名前自動生成に失敗、フォールバックを使用:', genErr)
+        characterName = eggType.name
+      }
+    }
     
     // 初期ステータスを作成
     const initialStats = {
@@ -60,7 +81,7 @@ export async function POST(request: Request) {
     // キャラクターを作成
     const character = await prisma.character.create({
       data: {
-        name: name || `${eggType.name}の卵`,
+        name: characterName || eggType.name,
         eggTypeId: eggTypeId,
         stats: initialStats,
         evolutionHistory: [],

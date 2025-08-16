@@ -109,62 +109,118 @@ function darkenColor(color: string, percent: number): string {
 }
 
 /**
- * 卵の名称を生成
+ * 卵の名称を生成（見た目と一致）
+ * - デザイン（色・パターン）と特性タグ（[パターン, エレメント, レアリティ特性]）から日本語名を生成
+ * - Mastra統合時（環境変数NEXT_PUBLIC_MASTRA_NAMING_ENABLED=true）は先進的な命名を試行
+ * - フォールバック：LLM未導入環境でも安定して動作するルールベース命名
  */
-function generateName(rng: () => number): string {
-  const adjectives = [
-    "オーロラの", "コズミックな", "パステルの", "古代の", "煌めく", "静謐な", "神秘の",
-    "原初の", "風詠みの", "深夜の", "黎明の", "暁の", "夢幻の", "星霜の", "蒼穹の",
-    "翠碧の", "紅蓮の", "琥珀の", "白銀の", "漆黒の", "虹彩の", "稲妻の", "泡沫の",
-  ];
-  const nouns = [
-    "卵殻", "結晶卵", "原石卵", "星卵", "霧卵", "潮騒卵", "焔卵", "森羅卵", "月光卵",
-    "暁光卵", "深淵卵", "薄明卵", "風花卵", "砂紋卵", "雲海卵", "氷晶卵", "樹液卵",
-    "音紋卵", "波紋卵", "光環卵", "夢紡卵", "記憶卵",
-  ];
-  return `${pick(rng, adjectives)}${pick(rng, nouns)}`;
+function generateName(rng: () => number, design: EggDesign, traits: string[]): string {
+  // 環境変数でMastra統合の有効化チェック
+  const isMastraEnabled = process.env.NEXT_PUBLIC_MASTRA_NAMING_ENABLED === 'true';
+  
+  if (isMastraEnabled) {
+    try {
+      // TODO: Mastraエージェント統合時の実装
+      // NOTE: 現在はフロントエンド（EggGenerator）で動作するため、Mastraツール利用は制限的
+      // 将来的には、ジェネレータAPIエンドポイント経由で命名ツールを呼び出し
+      console.log('Mastra naming is enabled but not yet implemented in client-side context');
+    } catch (error) {
+      console.warn('Mastra命名で失敗、フォールバックへ:', error);
+    }
+  }
+
+  /**
+   * ルールベース命名（フォールバック）
+   * 卵の名前を生成（8文字以内・「卵」を含めない）
+   * - 色に強く整合する日本語名（例: 紅蓮, 琥珀, 黄金, 翠, 瑠璃, 紫, 藤, 桃, 白銀, 漆黒）
+   * - 余裕があれば要素（炎/水/風/土/雷/氷/光/闇）や短いパターン語（縞/斑/輪紋/星紋/焔/自然/パステル）を付与
+   * - 最大8文字、超える場合は安全にトリム
+   */
+  const colorAdj = getJapaneseColorAdj(design.colors[0]);
+  const element = inferElementFromDesign(design);
+  const patternLabel = getPatternLabelForName(design.pattern);
+
+  // 候補をいくつか用意して、rngで選ぶ（短い方を優先）
+  const candidates = [
+    colorAdj,
+    `${colorAdj}${element}`,
+    `${colorAdj}${patternLabel}`,
+    `${colorAdj}${element}${patternLabel}`,
+  ].filter(Boolean);
+
+  // rngに基づき候補を選択し、8文字に安全トリム
+  const pickIndex = Math.floor(rng() * candidates.length);
+  const picked = candidates[pickIndex] || colorAdj;
+  return safeTrimToLength(picked, 8);
 }
 
 /**
- * 卵の特性（traits）を生成
+ * HEXをHSLへ変換 - 統一されたタプル形式で戻り値を返す
+ */
+function hexToHsl(hex: string): [number, number, number] {
+  let r = 0, g = 0, b = 0;
+  const clean = hex.replace('#', '');
+  if (clean.length === 3) {
+    r = parseInt(clean[0] + clean[0], 16);
+    g = parseInt(clean[1] + clean[1], 16);
+    b = parseInt(clean[2] + clean[2], 16);
+  } else if (clean.length === 6) {
+    r = parseInt(clean.substring(0, 2), 16);
+    g = parseInt(clean.substring(2, 4), 16);
+    b = parseInt(clean.substring(4, 6), 16);
+  }
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+/**
+ * レアリティに応じて特性タグ数を制御して生成
+ * - common: 1個
+ * - rare: 2個
+ * - legendary: 3個
+ * 例外なし / 新旧ミックスの語彙から重複なしで選出
  */
 function generateTraits(rng: () => number, design: EggDesign): string[] {
-  const elements = ["炎", "水", "風", "土", "雷", "氷", "光", "闇"];
-  const vibes = ["静か", "活発", "知的", "大胆", "優雅", "素朴", "神秘的", "快活"];
-  const rarity = mapRarity(design); // 'common' | 'rare' | 'legendary'
+  const rarity = mapRarity(design);
+  const count = rarity === 'legendary' ? 3 : rarity === 'rare' ? 2 : 1;
 
-  // レアリティ別特性プール（短いタグ表現）
-  const rarityTraits: Record<EggType['rarity'], string[]> = {
-    common: ["堅牢", "穏やか", "素直", "温厚", "安定"],
-    rare: ["俊敏", "奔放", "聡明", "快活", "勇敢"],
-    legendary: ["神秘", "崇高", "不滅", "奇跡", "古代の力"],
-  };
+  // 既存例（ユーザー提供）+ 追加語彙（新規）
+  const basePool = [
+    // デフォルト特性
+    'バランス型','万能','安定成長',
+    '可愛い系','癒し','社交的',
+    '神秘的','知的','幻想',
+    '自然派','癒し系','穏やか',
+    '情熱的','アクティブ','リーダー',
+    '想像的','芸術的','独創性',
+    // 新規特性
+    '俊敏','堅牢','優雅',
+    '清廉','荘厳','繊細',
+    '大胆','直感的','柔軟',
+    '勇敢','神速','不屈',
+    '洗練','陽気','無垢'
+  ];
 
-  // 特性取得関数（レアリティに応じて1つ選択）
-  function getRandomTrait(r: EggType['rarity']): string {
-    const pool = rarityTraits[r];
-    return pool[Math.floor(rng() * pool.length)];
+  // 乱数でシャッフルして先頭から count 件取得（重複防止）
+  const uniquePool = Array.from(new Set(basePool));
+  for (let i = uniquePool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [uniquePool[i], uniquePool[j]] = [uniquePool[j], uniquePool[i]];
   }
-
-  // パターンを短い日本語ラベルにマッピング（タグとして使用）
-  const patternLabels: Record<EggDesign['pattern'], string> = {
-    speckle: '斑点',
-    stripe: '縞模様',
-    rings: '輪紋',
-    aurora: 'オーロラ',
-    cosmic: '宇宙',
-    fire: '炎',
-    natural: '自然',
-    pastel: 'パステル',
-  };
-
-  const element = pick(rng, elements);
-  const vibe = pick(rng, vibes);
-  const special = getRandomTrait(rarity);
-  const patternTag = patternLabels[design.pattern];
-
-  // 特徴タグは3つに統一: パターン / エレメント / レアリティ特性
-  return [patternTag, element, special];
+  return uniquePool.slice(0, count);
 }
 
 /**
@@ -172,11 +228,12 @@ function generateTraits(rng: () => number, design: EggDesign): string[] {
  */
 function generateDescription(rng: () => number, traits: string[]): string {
   const tone = [
-    "この卵は遥か昔の記憶を湛え、微かな輝きで持ち主に応えるという。",
-    "表層に刻まれた紋は世界の理の名残であり、触れると静かに鼓動する。",
-    "柔らかな光が殻の奥から滲み、未だ知られぬ可能性を約束している。",
-    "風とともに囁くように震え、選ばれし者を待っているようだ。",
-    "淡い放射が周囲の気配を整え、持つ者の心を凪へ導くという。",
+    "自然の恵みを感じる緑の卵。葉っぱの模様が印象的で、癒し系や自然派のキャラクターに成長する傾向。",
+    "優しいピンクのグラデーションが美しい卵。愛らしく温かいキャラクターに進化しやすい傾向。",
+    "シンプルで美しい白い卵。あらゆる可能性を秘めた純粋な始まり。どんなキャラクターにも進化できる万能タイプ。",
+    "情熱的なオレンジから赤のグラデーション。炎のような模様が特性的で、エネルギッシュで活動的なキャラクターへ。",
+    "宇宙の神秘を宿した深い青紫の卵。星屑が散りばめられ、幻想的で知的なキャラクターへと導く。",
+    "虹色に輝く神秘的な卵。オーロラのような美しい色彩で、創造的で芸術的なキャラクターに進化する特別なタイプ。",
   ];
   const base = pick(rng, tone);
   const traitLine = `特性: ${traits.join(" / ")}`;
@@ -444,20 +501,20 @@ async function createEggPNG(design: EggDesign, seed: number): Promise<Blob> {
  * 250種のメタデータを生成
  * - 画像自体はダウンロード操作時に生成（省メモリ）
  */
-function useGeneratedEggs(count: number) {
+function useGeneratedEggs(count: number, baseSeed: number = 1000) {
   return useMemo(() => {
     const eggs: EggMeta[] = [];
     for (let i = 0; i < count; i++) {
-      const seed = 1000 + i; // 再現可能なシード
+      const seed = baseSeed + i; // 再現可能なシード（baseSeedで変化）
       const rng = mulberry32(seed);
       const design = generateDesign(rng);
       const traits = generateTraits(rng, design);
-      const name = generateName(rng);
+      const name = generateName(rng, design, traits);
       const description = generateDescription(rng, traits);
       eggs.push({ id: i + 1, seed, name, description, traits, design });
     }
     return eggs;
-  }, [count]);
+  }, [count, baseSeed]);
 }
 
 /**
@@ -484,16 +541,19 @@ function buildCSV(eggs: EggMeta[]): string {
  * - 画像はZIPで一括ダウンロード
  */
 export default function EggGenerator() {
-  const eggs = useGeneratedEggs(250);
+  // 生成のバリエーションを制御するシード
+  const [baseSeed, setBaseSeed] = useState<number>(1000);
+  const eggs = useGeneratedEggs(250, baseSeed);
   const [working, setWorking] = useState<"none" | "png" | "svg" | "csv">("none");
   // 全プレビュー表示フラグ
   const [showAll, setShowAll] = useState(false);
 
   /**
    * 生成ボタン押下時のハンドラ
-   * - 全プレビュー表示を有効にする
+   * - 全プレビュー表示を有効化し、毎回seedを変えて再生成
    */
   const handleGenerateAllPreview = () => {
+    setBaseSeed(prev => prev + Math.floor(Math.random() * 1000) + 1);
     setShowAll(true);
   };
 
@@ -574,37 +634,14 @@ export default function EggGenerator() {
         <div className="flex gap-3 mt-2">
           <button
             onClick={handleGenerateAllPreview}
-            disabled={showAll}
-            className="inline-flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white font-semibold px-5 py-3 rounded disabled:opacity-50"
+            className="inline-flex items-center gap-2 bg-yellow-600 hover:bg-yellow-500 text-white font-semibold px-5 py-3 rounded"
           >
-            生成（全プレビュー表示）
+            生成（プレビュー）
           </button>
         </div>
       </div>
 
-      {/* プレビュー */}
-      {!showAll && (
-        <div className="mb-10">
-          <p className="text-white/70 mb-3">プレビュー（先頭6件）</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 justify-items-center">
-            {eggs.slice(0, 6).map((e, idx) => {
-              const svg = createEggSVG(e.design, e.seed);
-              const imageSrc = svgToDataUrl(svg);
-              const eggType = toEggType(e);
-              return (
-                <EggCard
-                  key={`preview-${e.id}`}
-                  eggType={eggType}
-                  isSelected={false}
-                  onSelect={() => {}}
-                  index={idx}
-                  imageSrc={imageSrc}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* プレビューは生成ボタン押下後のみ表示 */}
 
       {showAll && (
         <div className="mb-10">
@@ -697,4 +734,60 @@ function toEggType(meta: EggMeta): EggType {
     characteristics: meta.traits,
     rarity: mapRarity(meta.design),
   };
+}
+
+/**
+ * 要素（炎/水/風/土/雷/氷/光/闇）をデザインから推定（簡易）
+ * - 主色のHSLのHueを基準に分類
+ * - パターンの種類でも補強（fire→炎, aurora→光, cosmic→雷 相当のニュアンス）
+ */
+function inferElementFromDesign(design: EggDesign): string {
+  const [h, s, l] = hexToHsl(design.colors[0]);
+  if (design.pattern === 'fire') return '炎';
+  if (design.pattern === 'aurora') return '光';
+  if (design.pattern === 'cosmic') return '雷';
+  if (h < 20 || h >= 340) return '炎';
+  if (h < 50) return '光';
+  if (h < 90) return '風';
+  if (h < 160) return '水';
+  if (h < 260) return '闇';
+  if (l < 20) return '闇';
+  if (l > 85) return '光';
+  return '風';
+}
+
+/** 命名用の短いパターンラベル（「卵」は含めない） */
+function getPatternLabelForName(pattern: EggDesign['pattern']): string {
+  switch (pattern) {
+    case 'stripe': return '縞';
+    case 'speckle': return '斑';
+    case 'rings': return '輪紋';
+    case 'aurora': return 'オーロラ';
+    case 'cosmic': return '星紋';
+    case 'fire': return '焔';
+    case 'natural': return '自然';
+    case 'pastel': return 'パステル';
+    default: return '';
+  }
+}
+
+/** 文字数制限（サロゲートペア考慮） */
+function safeTrimToLength(input: string, maxLen: number): string {
+  const arr = Array.from(input);
+  return arr.length <= maxLen ? input : arr.slice(0, maxLen).join('');
+}
+
+/** 日本語の色形容を主色から推定（最大4文字程度） */
+function getJapaneseColorAdj(hex: string): string {
+  const [h, , l] = hexToHsl(hex);
+  if (l < 20) return '漆黒';
+  if (l > 85) return '白銀';
+  if (h < 15 || h >= 345) return '紅蓮';
+  if (h < 35) return '琥珀';
+  if (h < 55) return '黄金';
+  if (h < 85) return '翠';
+  if (h < 160) return '瑠璃';
+  if (h < 260) return '紫';
+  if (h < 300) return '藤';
+  return '桃';
 }

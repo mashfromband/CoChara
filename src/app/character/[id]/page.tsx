@@ -13,7 +13,7 @@ import { useSocket } from '@/hooks/useSocket'
 // キャラクター詳細ページ
 /**
  * キャラクター詳細ページ
- * - 卵表示領域はEggImage(size=192)の高さ(288px)に合わせてh-72を使用し、卵全体が見切れないように調整
+ * - 卵表示領域は EggImage の size に基づき横幅で制御し、高さは画像の実アスペクト比（onLoadで算出）で自動調整
  * - 左上の「戻る」ボタンは router.back() を用いて直前のページへ遷移
  */
 export default function CharacterDetailPage() {
@@ -178,38 +178,66 @@ export default function CharacterDetailPage() {
     const fetchCharacter = async () => {
       try {
         setIsLoading(true)
-        
-        // 開発中はAPIリクエストをスキップしてダミーデータを使用
-        // 本番環境では以下のコメントを外してAPIリクエストを有効化
-        /*
-        const response = await fetch(`/api/characters/${characterId}`)
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'キャラクター情報の取得に失敗しました')
+
+        // まずAPIからサーバーデータ（サーバー命名）を取得し、eggTypeId から EggType を補完
+        try {
+          /**
+           * /api/characters/[id]
+           * - サーバーで生成された名前（色由来）を返す
+           * - eggTypeId を含むのでクライアントで EggType に補完
+           */
+          const response = await fetch(`/api/characters/${characterId}`)
+
+          if (!response.ok) {
+            throw new Error('APIレスポンスが不正です')
+          }
+
+          const apiCharacter = await response.json() as {
+            id: string
+            name: string
+            eggTypeId: string
+            stats: Character['stats']
+            evolutionHistory: Character['evolutionHistory']
+            createdAt: string
+            updatedAt: string
+            ownerId: string
+            sharedWith: string[]
+          }
+
+          const eggType = getEggTypeById(apiCharacter.eggTypeId)
+          if (!eggType) throw new Error('卵タイプが不正です')
+
+          const enriched: Character = {
+            id: apiCharacter.id,
+            name: apiCharacter.name,
+            eggType,
+            stats: apiCharacter.stats,
+            evolutionHistory: apiCharacter.evolutionHistory,
+            ownerId: apiCharacter.ownerId,
+            sharedWith: apiCharacter.sharedWith,
+            createdAt: new Date(apiCharacter.createdAt),
+            updatedAt: new Date(apiCharacter.updatedAt),
+          }
+
+          setCharacter(enriched)
+          return // 成功時はフォールバックへ行かない
+        } catch (apiErr) {
+          console.warn('APIからのキャラクター取得に失敗。ローカルフォールバックを使用します:', apiErr)
         }
-        
-        const data = await response.json()
-        setCharacter(data)
-        */
-        
-        // 開発中はダミーデータを使用
-        // localStorage から選択された卵の履歴を取得
+
+        // ===== フォールバック: ローカルストレージの履歴からダミー生成 =====
         let selectedEggType = null;
         try {
           const storageKeySuffix = session?.user?.email ?? 'guest'
-          // まず selectedEggHistory から該当する卵を探す（ユーザー別キー）
           const historyData = localStorage.getItem(`selectedEggHistory:${storageKeySuffix}`);
           if (historyData) {
             const history = JSON.parse(historyData);
-            // キャラクターIDから対応する卵を推定 (char-1なら最初の卵など)
-            const characterIndex = parseInt(characterId.replace('char-', '')) - 1;
+            const characterIndex = parseInt((characterId || '').replace('char-', '')) - 1;
             if (characterIndex >= 0 && characterIndex < history.length) {
               selectedEggType = getEggTypeById(history[characterIndex]);
             }
           }
-          
-          // 履歴にない場合は currentGachaState から取得（ユーザー別キー）
+
           if (!selectedEggType) {
             const gachaState = localStorage.getItem(`currentGachaState:${storageKeySuffix}`);
             if (gachaState) {
@@ -222,20 +250,19 @@ export default function CharacterDetailPage() {
         } catch (localStorageError) {
           console.warn('LocalStorage読み取りエラー:', localStorageError);
         }
-        
-        // localStorage から取得できない場合は cosmic をフォールバック
+
         if (!selectedEggType) {
           selectedEggType = getEggTypeById('cosmic');
         }
-        
+
         if (!selectedEggType) {
           throw new Error('卵タイプが見つかりません');
         }
-        
+
         const dummyCharacter: Character = {
           id: characterId,
-          name: `${selectedEggType.name}の卵`,
-          eggType: selectedEggType, // LocalStorage から取得した卵タイプを使用
+          name: selectedEggType.name,
+          eggType: selectedEggType,
           stats: {
             level: 1,
             experience: 0,
@@ -248,19 +275,20 @@ export default function CharacterDetailPage() {
           createdAt: new Date(),
           updatedAt: new Date()
         }
-        
+
         setCharacter(dummyCharacter)
-        setError(null)
       } catch (err) {
-        console.error('キャラクター情報取得エラー:', err)
+        console.error('キャラクター取得エラー:', err)
         setError('キャラクター情報の取得に失敗しました')
       } finally {
         setIsLoading(false)
       }
     }
-    
-    fetchCharacter()
-  }, [characterId])
+
+    if (characterId) {
+      fetchCharacter()
+    }
+  }, [characterId, session?.user?.email])
   
   // 認証状態に応じてリダイレクト
   useEffect(() => {
@@ -328,7 +356,7 @@ export default function CharacterDetailPage() {
     gradient: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     strokeColor: 'stroke-gray-400',
     pattern: 'stars',
-    characteristics: ['謎', '未知', '可能性']
+    characteristics: ['謎']
   }
   
   return (

@@ -71,7 +71,7 @@ export default function Home() {
         </main>
 
         <section className="mt-24 text-white">
-          <h2 className="text-3xl font-bold text-center mb-12">CoCharaの特徴</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">CoCharaの特性</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm flex flex-col items-center justify-center mb-4">
               <div className="bg-indigo-600 w-12 h-12 rounded-full flex items-center justify-center mb-4">
